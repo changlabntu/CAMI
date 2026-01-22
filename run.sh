@@ -1,3 +1,4 @@
+source .env
 python generate.py --model gpt-4o-mini --retriever_path BAAI/bge-reranker-v2-m3 --profile_path ./annotations/profiles.jsonl --output_dir Output/ --round 5 --max_turns 25 --profile_idx 2
     # GPT model you want to use
     #--model gpt-4o-mini \

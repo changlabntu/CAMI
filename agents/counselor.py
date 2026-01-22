@@ -77,6 +77,9 @@ class StateInference(BaseModel):
     )
 
 
+
+
+
 # Pydantic model for strategy selection
 class StrategySelection(BaseModel):
     """Structured model for counseling strategy selection."""
@@ -197,17 +200,23 @@ refinement_prompt_template = PromptTemplate(
 
 
 # Build LangChain Chains with Pydantic parsers
+# infer_state()
 state_inference_chain = state_inference_template | precise_llm | state_parser
 
-strategy_selection_chain = strategy_selection_template | precise_llm | strategy_parser
-
+# if no topic is initialized, initialize_topic()
 topic_initialization_analysis_chain = topic_initialization_analysis_template | precise_llm | StrOutputParser()
-
 topic_initialization_json_chain = topic_initialization_json_template | json_llm | topic_parser
 
-refinement_feedback_chain = refinement_feedback_template | precise_llm | refinement_feedback_parser
+# if topic is initialized, explore() (explore next topics)
 
-refinement_chain = refinement_prompt_template | chatbot_llm | refinement_response_parser
+# select_strategy()
+strategy_selection_chain = strategy_selection_template | precise_llm | strategy_parser
+
+# generate(last_utterance, topic, state, selected_strategies)
+
+# refine()
+refinement_feedback_chain = refinement_feedback_template | precise_llm | refinement_feedback_parser # precise_llm, feedback N times until score > 7
+refinement_chain = refinement_prompt_template | chatbot_llm | refinement_response_parser # chatbot_llm, refine response based on feedback (max 3 times)
 
 
 def openai_2_langchain(messages):
@@ -221,6 +230,7 @@ def openai_2_langchain(messages):
         elif msg["role"] == "assistant":
             lc_messages.append(AIMessage(content=msg["content"]))
     return lc_messages
+
 
 
 def get_llm_response(llm, messages):
