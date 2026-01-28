@@ -9,7 +9,6 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser, PydanticOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain.memory import ConversationSummaryBufferMemory
 from .counselor_context import (
     state2instruction, 
     topic2description, 
@@ -276,21 +275,6 @@ class CAMI:
         self.explored_topics = []
         self.topic_stack = []
         self.initialized = False
-        
-        # Initialize LangChain memory for conversation summarization
-        # Keeps recent ~2000 tokens verbatim, summarizes older messages
-        self.memory = ConversationSummaryBufferMemory(
-            llm=precise_llm,
-            max_token_limit=2000,
-            return_messages=False,  # Return string format
-            memory_key="history"
-        )
-        
-        # Seed memory with initial greeting exchange
-        self.memory.save_context(
-            {"input": first_client},
-            {"output": first_counselor}
-        )
 
     def _get_conversation_text(self):
         """Extract plain text conversation from messages (excluding system prompt)."""
