@@ -40,8 +40,8 @@ def main():
     )
     parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami"],
                         help="Agent type: simple (default) or cami (full MI with topics)")
-    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis"],
-                        help="Agent context: cami (default, MI-focused) or crisis (DBT, safety-focused)")
+    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "narrative"],
+                        help="Agent context: cami (default, MI-focused), crisis (DBT, safety-focused), or narrative")
     args = parser.parse_args()
 
     # Get goal and behavior from scenario
@@ -54,6 +54,8 @@ def main():
         print("CAMI - Full Motivational Interviewing Counselor (with topics)")
     elif args.context == "crisis":
         print("Simple Agent - DBT Crisis Counselor (safety-focused)")
+    elif args.context == "narrative":
+        print("Simple Agent - Narrative Therapy Counselor")
     else:
         print("Simple Agent - MI Counselor")
     print(f"Context: {args.context}")
@@ -70,8 +72,13 @@ def main():
     if args.agent == "cami":
         counselor = CAMI(goal=goal, behavior=behavior, model=args.model)
     else:  # default: simple
-        crisis_mode = (args.context == "crisis")
-        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)
+        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, context=args.context)
+
+    if args.show_metadata and hasattr(counselor, 'valid_strategies'):
+        print(f"[Debug] Available strategies ({len(counselor.valid_strategies)}):")
+        for s in counselor.valid_strategies:
+            print(f"  - {s}")
+        print()
 
     print("Counselor: Hello. How are you?\n")
 

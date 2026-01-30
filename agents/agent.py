@@ -197,16 +197,21 @@ class CAMISimple:
     Supports both MI mode (default) and Crisis mode via crisis_mode flag.
     """
 
-    def __init__(self, goal, behavior, model, crisis_mode=False):
-        self.crisis_mode = crisis_mode
+    def __init__(self, goal, behavior, model, context="cami"):
+        self.context = context
 
-        # Lazy import based on mode
-        if crisis_mode:
+        # Lazy import based on context
+        if context == "crisis":
             from .context_crisis import (
                 state2instruction, strategy2description, system_prompt_template,
                 infer_state_prompt, select_strategy_prompt, response_selection_prompt
             )
-        else:
+        elif context == "narrative":
+            from .context_narrative import (
+                state2instruction, strategy2description, system_prompt_template,
+                infer_state_prompt, select_strategy_prompt, response_selection_prompt
+            )
+        else:  # default: cami
             from .context_cami import (
                 state2instruction, strategy2description, system_prompt_template,
                 infer_state_prompt, select_strategy_prompt, response_selection_prompt
@@ -215,6 +220,7 @@ class CAMISimple:
         self.state2instruction = state2instruction
         self.strategy2description = strategy2description
         self.response_selection_prompt = response_selection_prompt
+        self.valid_strategies = list(strategy2description.keys())
 
         # Build state inference chain
         state_inference_template = PromptTemplate(
@@ -224,13 +230,14 @@ class CAMISimple:
         )
         self.state_chain = state_inference_template | precise_llm | state_parser
 
-        # Build strategy selection chain
+        # Build strategy selection chain with context-specific strategies
+        context_strategy_parser = self._create_strategy_parser(self.valid_strategies)
         strategy_selection_template = PromptTemplate(
             input_variables=["context", "state", "state_instruction"],
             template=select_strategy_prompt + "\n\n{format_instructions}",
-            partial_variables={"format_instructions": strategy_parser.get_format_instructions()}
+            partial_variables={"format_instructions": context_strategy_parser.get_format_instructions()}
         )
-        self.strategy_chain = strategy_selection_template | precise_llm | strategy_parser
+        self.strategy_chain = strategy_selection_template | precise_llm | context_strategy_parser
 
         system_prompt = system_prompt_template.format(goal=goal, behavior=behavior)
 
@@ -243,6 +250,26 @@ class CAMISimple:
         self.model = model
         self.goal = goal
         self.behavior = behavior
+
+    def _create_strategy_parser(self, valid_strategies):
+        """Create a strategy parser with context-specific valid strategies."""
+        valid_strategies_list = valid_strategies
+
+        class ContextStrategySelection(BaseModel):
+            """Structured model for counseling strategy selection."""
+            strategies: List[str] = Field(
+                description="List of selected counseling strategies. Valid options: " + ", ".join(valid_strategies_list)
+            )
+            analysis: str = Field(
+                description="Analysis of the current situation and rationale for strategy selection"
+            )
+
+            @validator('strategies')
+            def validate_strategies(cls, v):
+                valid = [s for s in v if s in valid_strategies_list]
+                return valid if valid else ["No Strategy"]
+
+        return PydanticOutputParser(pydantic_object=ContextStrategySelection)
 
     def _get_conversation_text(self):
         """Extract plain text conversation from messages (excluding system prompt)."""
