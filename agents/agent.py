@@ -183,9 +183,9 @@ def get_llm_response(llm, messages):
         prompt_tokens = usage.get('input_tokens', 0) or usage.get('prompt_tokens', 0)
         completion_tokens = usage.get('output_tokens', 0) or usage.get('completion_tokens', 0)
         total_tokens = usage.get('total_tokens', prompt_tokens + completion_tokens)
-        print(f"[counselor_simple.get_llm_response] done in {dur:.2f}s | Tokens: {prompt_tokens} prompt + {completion_tokens} completion = {total_tokens} total")
+        print(f"[agent.get_llm_response] done in {dur:.2f}s | Tokens: {prompt_tokens} prompt + {completion_tokens} completion = {total_tokens} total")
     else:
-        print(f"[counselor_simple.get_llm_response] done in {dur:.2f}s")
+        print(f"[agent.get_llm_response] done in {dur:.2f}s")
 
     return response.content
 
@@ -202,12 +202,12 @@ class CAMISimple:
 
         # Lazy import based on mode
         if crisis_mode:
-            from .counselor_crisis_context import (
+            from .context_crisis import (
                 state2instruction, strategy2description, system_prompt_template,
                 infer_state_prompt, select_strategy_prompt, response_selection_prompt
             )
         else:
-            from .counselor_context import (
+            from .context_cami import (
                 state2instruction, strategy2description, system_prompt_template,
                 infer_state_prompt, select_strategy_prompt, response_selection_prompt
             )
@@ -366,24 +366,24 @@ The state of client is {state}, where {state_instruction}
 
     def reply(self):
         """Main reply loop: infer state → select strategy → generate → refine."""
-        print("[counselor_simple.reply] enter")
+        print("[agent.reply] enter")
         t0 = time.time()
 
         # 1. Infer state
         state = self.infer_state()
-        print(f"[counselor_simple.reply] inferred state='{state}' in {time.time()-t0:.2f}s")
+        print(f"[agent.reply] inferred state='{state}' in {time.time()-t0:.2f}s")
 
         # 2. Select strategy
         t1 = time.time()
         strategy_analysis, selected_strategies = self.select_strategy(state)
-        print(f"[counselor_simple.reply] strategy selected {selected_strategies} in {time.time()-t1:.2f}s")
+        print(f"[agent.reply] strategy selected {selected_strategies} in {time.time()-t1:.2f}s")
 
         last_utterance = self.messages[-1]["content"]
 
         # 3. Generate response
         t2 = time.time()
         response, final_strategy = self.generate(last_utterance, state, selected_strategies)
-        print(f"[counselor_simple.reply] generated response via '{final_strategy}' in {time.time()-t2:.2f}s")
+        print(f"[agent.reply] generated response via '{final_strategy}' in {time.time()-t2:.2f}s")
 
         if final_strategy == "Combined Strategies":
             if selected_strategies:
@@ -403,7 +403,7 @@ The state of client is {state}, where {state_instruction}
         t3 = time.time()
         conversation = self._get_conversation_text()
         response = self.refine(conversation[-5:], response, strategy_description)
-        print(f"[counselor_simple.reply] refined response in {time.time()-t3:.2f}s")
+        print(f"[agent.reply] refined response in {time.time()-t3:.2f}s")
 
         response = response.replace("\n", " ").strip()
         self.messages[-1]["content"] = last_utterance

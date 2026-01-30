@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Interactive chat with CAMI counselor (MI, Simple, or Crisis mode)."""
+"""Interactive chat with counselor agent."""
 
 from agents import CAMI, CAMISimple
 import argparse
@@ -31,53 +31,47 @@ DEFAULT_SCENARIOS = {
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Interactive CAMI (MI counselor) session")
+    parser = argparse.ArgumentParser(description="Interactive counselor session")
     parser.add_argument("--model", type=str, default="gpt-4o-2024-08-06", help="OpenAI model to use")
     parser.add_argument("--show-metadata", action="store_true", help="Show counselor's internal state metadata")
     parser.add_argument(
         "--scenario", type=str, default="suicidal", choices=list(DEFAULT_SCENARIOS.keys()),
-        help="Predefined scenario to use (default: smoking)"
+        help="Predefined scenario to use (default: suicidal)"
     )
-    parser.add_argument("--goal", type=str, default=None, help="Custom goal (overrides scenario)")
-    parser.add_argument("--behavior", type=str, default=None, help="Custom behavior (overrides scenario)")
-    parser.add_argument("--simple", action="store_true", help="Use simplified MI counselor (no topic management)")
-    parser.add_argument("--crisis", action="store_true", help="Use DBT crisis counselor (safety-focused, directive). Implies --simple.")
+    parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami"],
+                        help="Agent type: simple (default) or cami (full MI with topics)")
+    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis"],
+                        help="Agent context: cami (default, MI-focused) or crisis (DBT, safety-focused)")
     args = parser.parse_args()
 
-    # --crisis implies --simple
-    if args.crisis:
-        args.simple = True
-
-    # Determine goal and behavior
-    if args.goal and args.behavior:
-        goal = args.goal
-        behavior = args.behavior
-    else:
-        scenario = DEFAULT_SCENARIOS[args.scenario]
-        goal = args.goal or scenario["goal"]
-        behavior = args.behavior or scenario["behavior"]
+    # Get goal and behavior from scenario
+    scenario = DEFAULT_SCENARIOS[args.scenario]
+    goal = scenario["goal"]
+    behavior = scenario["behavior"]
 
     print("\n" + "="*60)
-    if args.crisis:
-        print("CAMI Crisis - DBT Crisis Counselor (safety-focused)")
-    elif args.simple:
-        print("CAMI Simple - MI Counselor (no topic management)")
+    if args.agent == "cami":
+        print("CAMI - Full Motivational Interviewing Counselor (with topics)")
+    elif args.context == "crisis":
+        print("Simple Agent - DBT Crisis Counselor (safety-focused)")
     else:
-        print("CAMI - Motivational Interviewing Counselor")
+        print("Simple Agent - MI Counselor")
+    print(f"Context: {args.context}")
     print("="*60)
     print(f"Goal: {goal}")
     print(f"Behavior: {behavior}")
     print("-"*60)
     print("Type 'quit' or 'exit' to end the session")
     print("Type 'state' to see current inferred state")
-    if not args.simple and not args.crisis:
+    if args.agent == "cami":
         print("Type 'topics' to see explored topics")
     print("="*60 + "\n")
 
-    if args.simple:
-        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=args.crisis)
-    else:
+    if args.agent == "cami":
         counselor = CAMI(goal=goal, behavior=behavior, model=args.model)
+    else:  # default: simple
+        crisis_mode = (args.context == "crisis")
+        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)
 
     print("Counselor: Hello. How are you?\n")
 
@@ -98,21 +92,19 @@ def main():
 
         if user_input.lower() == 'state':
             print(f"\n[Current State]")
-            if args.simple:
-                if args.crisis:
-                    print(f"  Mode: Simple + Crisis (DBT, safety-focused)")
-                else:
-                    print(f"  Mode: Simple (MI, no topic management)")
-                print(f"  Messages: {len(counselor.messages)}")
-            else:
+            if args.agent == "cami":
+                print(f"  Mode: Full CAMI (MI with topic management)")
                 print(f"  Initialized: {counselor.initialized}")
                 print(f"  Topic Stack: {counselor.topic_stack}")
                 print(f"  Explored Topics: {counselor.explored_topics}")
+            else:
+                print(f"  Mode: Simple (context: {args.context})")
+                print(f"  Messages: {len(counselor.messages)}")
             print()
             continue
 
         if user_input.lower() == 'topics':
-            if args.simple:
+            if args.agent != "cami":
                 print("\n[Topics not used in this mode]\n")
             else:
                 print(f"\n[Topic History]")

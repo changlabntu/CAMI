@@ -9,18 +9,18 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser, PydanticOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from .counselor_context import (
-    state2instruction, 
-    topic2description, 
-    strategy2description, 
-    topic_graph, 
-    system_prompt_template, 
-    topic_initialization_prompt, 
-    topic_initialization_json_prompt, 
-    infer_state_prompt, 
-    select_strategy_prompt, 
-    topic_explore_prompt, 
-    refine_feedback_prompt, 
+from .context_cami import (
+    state2instruction,
+    topic2description,
+    strategy2description,
+    topic_graph,
+    system_prompt_template,
+    topic_initialization_prompt,
+    topic_initialization_json_prompt,
+    infer_state_prompt,
+    select_strategy_prompt,
+    topic_explore_prompt,
+    refine_feedback_prompt,
     refine_prompt,
     response_selection_prompt,
     explore1,
