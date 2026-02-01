@@ -44,7 +44,7 @@ def main():
     )
     parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami", "story"],
                         help="Agent type: simple (default) or cami (full MI with topics)")
-    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "story"],
+    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "story", "story_simple"],
                         help="Agent context: cami (default, MI-focused), crisis (DBT, safety-focused), or story (narrative therapy)")
     parser.add_argument("--story", type=str, default=None,
                         help="Path to initial client story file (used with --agent story)")
@@ -63,6 +63,8 @@ def main():
         print("Simple Agent - DBT Crisis Counselor (safety-focused)")
     elif args.context == "story":
         print("Simple Agent - Narrative Therapy")
+    elif args.context == "story_simple":
+        print("Simple Agent - Narrative Therapy (simple)")
     else:
         print("Simple Agent - MI Counselor")
 
@@ -85,9 +87,9 @@ def main():
             with open(args.story, "r") as f:
                 initial_story = f.read().strip()
             print(f"Loaded client story from: {args.story}")
-            print(f"Story preview: {initial_story[:100]}..." if len(initial_story) > 100 else f"Story: {initial_story}")
+            print(f"Story: {initial_story[:]}")
             print("-"*60)
-        counselor = CAMIStory(goal=goal, behavior=behavior, model=args.model, context=args.context, initial_story=initial_story)
+        counselor = CAMIStory(model=args.model, initial_story=initial_story)
     else:  # default: simple
         crisis_mode = (args.context == "crisis")
         counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)

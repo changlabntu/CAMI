@@ -83,30 +83,6 @@ class StrategySelection(BaseModel):
         return valid if valid else ["No Strategy"]
 
 
-# Pydantic model for refinement feedback
-class RefinementFeedback(BaseModel):
-    """Structured model for response refinement feedback."""
-    strategy_adherence_score: int = Field(
-        description="Score from 0-10 for how well the response follows the strategy",
-        ge=0, le=10
-    )
-    feedback: str = Field(
-        description="Detailed feedback on strategy adherence"
-    )
-    suggestions: str = Field(
-        description="Concrete suggestions for refinement",
-        default=""
-    )
-
-
-# Pydantic model for refined response
-class RefinedResponse(BaseModel):
-    """Structured model for refined counselor response."""
-    response: str = Field(
-        description="The refined counselor response, starting with 'Counselor:'"
-    )
-
-
 # Pydantic model for story updates
 class StoryUpdate(BaseModel):
     """Structured model for client story updates."""
@@ -121,50 +97,7 @@ class StoryUpdate(BaseModel):
 # Create parsers
 state_parser = PydanticOutputParser(pydantic_object=StateInference)
 strategy_parser = PydanticOutputParser(pydantic_object=StrategySelection)
-refinement_feedback_parser = PydanticOutputParser(pydantic_object=RefinementFeedback)
-refinement_response_parser = PydanticOutputParser(pydantic_object=RefinedResponse)
 story_update_parser = PydanticOutputParser(pydantic_object=StoryUpdate)
-
-# Simplified refinement prompt (no topic)
-refine_feedback_simple_prompt = """Evaluate the following counselor response for strategy adherence.
-
-### Conversation Context:
-{context}
-
-### Counselor Response:
-{response}
-
-### Strategy Used:
-{strategy}
-
-### Evaluation Criteria:
-- Does the response follow the suggested counseling strategy?
-- Is the response appropriate for the conversation context?
-- Is the tone warm, empathetic, and non-judgmental?
-
-Provide a score from 0-10 and specific feedback."""
-
-refine_simple_prompt = """Refine the counselor response based on the feedback.
-
-### Conversation Context:
-{context}
-
-### Original Response:
-{response}
-
-### Strategy to Follow:
-{strategy}
-
-### Feedback:
-{feedback}
-
-### Guidelines:
-- Keep response under 100 words
-- Follow the suggested strategy more closely
-- Maintain warm, empathetic tone
-- Start with "Counselor:"
-
-### Refined Response:"""
 
 # Story update prompt
 story_update_prompt = """Given the conversation so far and the current client portrait, update the portrait to reflect any new information learned about the client.
@@ -185,18 +118,6 @@ story_update_prompt = """Given the conversation so far and the current client po
 
 ### Updated Portrait:"""
 
-refinement_feedback_template = PromptTemplate(
-    input_variables=["context", "response", "strategy"],
-    template=refine_feedback_simple_prompt + "\n\n{format_instructions}",
-    partial_variables={"format_instructions": refinement_feedback_parser.get_format_instructions()}
-)
-
-refinement_prompt_template = PromptTemplate(
-    input_variables=["context", "response", "strategy", "feedback"],
-    template=refine_simple_prompt + "\n\n{format_instructions}",
-    partial_variables={"format_instructions": refinement_response_parser.get_format_instructions()}
-)
-
 story_update_template = PromptTemplate(
     input_variables=["current_story", "recent_conversation"],
     template=story_update_prompt + "\n\n{format_instructions}",
@@ -204,8 +125,6 @@ story_update_template = PromptTemplate(
 )
 
 # Build chains
-refinement_feedback_chain = refinement_feedback_template | precise_llm | refinement_feedback_parser
-refinement_chain = refinement_prompt_template | chatbot_llm | refinement_response_parser
 story_update_chain = story_update_template | story_llm | story_update_parser
 
 
@@ -242,30 +161,18 @@ def get_llm_response(llm, messages):
 class CAMIStory:
     """
     CAMI counselor with evolving client story/portrait.
-    Pipeline: State Inference → Strategy Selection → Generate (with story) → Refine → Update Story
+    Pipeline: State Inference → Strategy Selection → Generate (with story) → Update Story
     """
 
-    def __init__(self, goal, behavior, model, context="cami", initial_story=""):
-        self.context = context
+    def __init__(self, model, initial_story=""):
         self.client_story = initial_story
         self.story_changes = ""  # Track what changed in the last update
 
-        # Lazy import based on context
-        if context == "crisis":
-            from .context_crisis import (
-                state2instruction, strategy2description, system_prompt_template,
-                infer_state_prompt, select_strategy_prompt, response_selection_prompt
-            )
-        elif context == "story":
-            from .context_story import (
-                state2instruction, strategy2description, system_prompt_template,
-                infer_state_prompt, select_strategy_prompt, response_selection_prompt
-            )
-        else:  # default: cami
-            from .context_cami import (
-                state2instruction, strategy2description, system_prompt_template,
-                infer_state_prompt, select_strategy_prompt, response_selection_prompt
-            )
+        # Import context prompts
+        from .context_story_simple import (
+            state2instruction, strategy2description, system_prompt_template,
+            infer_state_prompt, select_strategy_prompt, response_selection_prompt
+        )
 
         self.state2instruction = state2instruction
         self.strategy2description = strategy2description
@@ -289,7 +196,7 @@ class CAMIStory:
         )
         self.strategy_chain = strategy_selection_template | precise_llm | context_strategy_parser
 
-        system_prompt = system_prompt_template.format(goal=goal, behavior=behavior)
+        system_prompt = system_prompt_template.format(initial_story=initial_story)
 
         first_counselor = """Counselor: What's your story today?"""
 
@@ -298,8 +205,6 @@ class CAMIStory:
             {"role": "assistant", "content": first_counselor},
         ]
         self.model = model
-        self.goal = goal
-        self.behavior = behavior
 
     def _create_strategy_parser(self, valid_strategies):
         """Create a strategy parser with context-specific valid strategies."""
@@ -363,34 +268,6 @@ class CAMIStory:
         })
         return result.analysis, result.strategies
 
-    def refine(self, context, response, strategy):
-        """Refine counselor response using LangChain chains with structured output."""
-        context_str = "\n- ".join(context)
-
-        for _ in range(3):
-            feedback_result = refinement_feedback_chain.invoke({
-                "context": context_str,
-                "response": response,
-                "strategy": strategy
-            })
-
-            if feedback_result.strategy_adherence_score > 7:
-                break
-
-            refined_result = refinement_chain.invoke({
-                "context": context_str,
-                "response": response,
-                "strategy": strategy,
-                "feedback": f"{feedback_result.feedback}\n\nSuggestions: {feedback_result.suggestions}"
-            })
-
-            response = refined_result.response
-
-            if not response.startswith("Counselor:"):
-                response = f"Counselor: {response}"
-
-        return response
-
     def generate(self, last_utterance, state, selected_strategies):
         """Generate candidate responses for each strategy and select the best one."""
         state_instruction = self.state2instruction.get(state, "Unknown state")
@@ -398,7 +275,7 @@ class CAMIStory:
         # Include client story in the prompt if available
         story_context = ""
         if self.client_story:
-            story_context = f"\n\n### What we know about this client:\n{self.client_story}\n"
+            story_context = f"\n\n### What we know about this user:\n{self.client_story}\n"
 
         # Extract recent counselor responses to avoid repetition
         conversation = self._get_conversation_text()
@@ -408,14 +285,16 @@ class CAMIStory:
         ][-3:]  # Last 3 counselor responses
         avoid_repetition = ""
         if recent_counselor_responses:
-            avoid_repetition = "\n\n### Previous Counselor Responses (DO NOT REPEAT these questions or phrases):\n" + "\n".join(recent_counselor_responses)
+            avoid_repetition = "\n\n### Previous Responses (DO NOT REPEAT these questions or phrases):\n" + "\n".join(recent_counselor_responses)
 
-        prompt = f"""{last_utterance}
-Based on the previous counseling session, generate the response based on the following instruction and strategy:
-The client's goal is to {self.goal} regarding {self.behavior}.
-The state of client is {state}, where {state_instruction}{story_context}{avoid_repetition}
+        prompt = f"""The user just wrote:
+{last_utterance}
 
-IMPORTANT: Generate a NEW response that asks different questions or explores different angles than the previous counselor responses shown above.
+Based on their journal entry and the conversation so far, respond as a warm journaling companion.
+The user's current state is: {state} - {state_instruction}
+{story_context}{avoid_repetition}
+
+Generate a response that acknowledges what the user shared and helps them reflect.
 """
         candidate_responses = {}
         strategies = {}
@@ -459,8 +338,6 @@ IMPORTANT: Generate a NEW response that asks different questions or explores dif
         responses_str = "\n".join([f"{i+1}. {response}" for i, response in candidate_responses.items()])
 
         response_select_prompt = self.response_selection_prompt.format(
-            goal=self.goal,
-            behavior=self.behavior,
             conversation=conversation_str,
             responses=responses_str
         )
@@ -479,7 +356,7 @@ IMPORTANT: Generate a NEW response that asks different questions or explores dif
         self.messages.append({"role": "user", "content": response})
 
     def reply(self):
-        """Main reply loop: infer state → select strategy → generate → refine → update story."""
+        """Main reply loop: infer state → select strategy → generate → update story."""
         print("[agent_story.reply] enter")
         t0 = time.time()
 
@@ -502,24 +379,9 @@ IMPORTANT: Generate a NEW response that asks different questions or explores dif
         if final_strategy == "Combined Strategies":
             if selected_strategies:
                 final_strategy = " + ".join(selected_strategies)
-                strategy_description = "\n- ".join(
-                    [self.strategy2description[s] for s in selected_strategies if s in self.strategy2description]
-                )
-            else:
-                final_strategy = "No Strategy"
-                strategy_description = self.strategy2description["No Strategy"]
-        else:
-            strategy_description = self.strategy2description.get(final_strategy, self.strategy2description["No Strategy"])
 
         response = response.replace("\n", " ").strip()
 
-        # 4. Refine response
-        t3 = time.time()
-        conversation = self._get_conversation_text()
-        response = self.refine(conversation[-5:], response, strategy_description)
-        print(f"[agent_story.reply] refined response in {time.time()-t3:.2f}s")
-
-        response = response.replace("\n", " ").strip()
         self.messages[-1]["content"] = last_utterance
         self.messages.append({"role": "assistant", "content": response})
 
