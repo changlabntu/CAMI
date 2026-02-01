@@ -2,6 +2,7 @@
 """Interactive chat with counselor agent."""
 
 from agents import CAMI, CAMISimple
+from agents.agent_story import CAMIStory
 import argparse
 
 
@@ -38,10 +39,12 @@ def main():
         "--scenario", type=str, default="suicidal", choices=list(DEFAULT_SCENARIOS.keys()),
         help="Predefined scenario to use (default: suicidal)"
     )
-    parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami"],
+    parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami", "story"],
                         help="Agent type: simple (default) or cami (full MI with topics)")
-    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "narrative"],
-                        help="Agent context: cami (default, MI-focused), crisis (DBT, safety-focused), or narrative")
+    parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "story"],
+                        help="Agent context: cami (default, MI-focused), crisis (DBT, safety-focused), or story (narrative therapy)")
+    parser.add_argument("--story", type=str, default=None,
+                        help="Path to initial client story file (used with --agent story)")
     args = parser.parse_args()
 
     # Get goal and behavior from scenario
@@ -49,15 +52,17 @@ def main():
     goal = scenario["goal"]
     behavior = scenario["behavior"]
 
+    # agent and context control
     print("\n" + "="*60)
     if args.agent == "cami":
         print("CAMI - Full Motivational Interviewing Counselor (with topics)")
     elif args.context == "crisis":
         print("Simple Agent - DBT Crisis Counselor (safety-focused)")
-    elif args.context == "narrative":
-        print("Simple Agent - Narrative Therapy Counselor")
+    elif args.context == "story":
+        print("Simple Agent - Narrative Therapy")
     else:
         print("Simple Agent - MI Counselor")
+
     print(f"Context: {args.context}")
     print("="*60)
     print(f"Goal: {goal}")
@@ -71,14 +76,18 @@ def main():
 
     if args.agent == "cami":
         counselor = CAMI(goal=goal, behavior=behavior, model=args.model)
+    elif args.agent == "story":
+        initial_story = ""
+        if args.story:
+            with open(args.story, "r") as f:
+                initial_story = f.read().strip()
+            print(f"Loaded client story from: {args.story}")
+            print(f"Story preview: {initial_story[:100]}..." if len(initial_story) > 100 else f"Story: {initial_story}")
+            print("-"*60)
+        counselor = CAMIStory(goal=goal, behavior=behavior, model=args.model, context=args.context, initial_story=initial_story)
     else:  # default: simple
-        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, context=args.context)
-
-    if args.show_metadata and hasattr(counselor, 'valid_strategies'):
-        print(f"[Debug] Available strategies ({len(counselor.valid_strategies)}):")
-        for s in counselor.valid_strategies:
-            print(f"  - {s}")
-        print()
+        crisis_mode = (args.context == "crisis")
+        counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)
 
     print("Counselor: Hello. How are you?\n")
 

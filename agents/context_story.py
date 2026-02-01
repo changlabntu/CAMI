@@ -222,7 +222,7 @@ Is safety addressed appropriately while maintaining narrative principles?
 ## Context
 {context}
 
-## Counselor's Response
+## Counselor's Responsei
 {response}
 
 ## Narrative Move Used
