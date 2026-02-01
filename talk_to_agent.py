@@ -85,14 +85,16 @@ def main():
             with open(args.story, "r") as f:
                 initial_story = f.read().strip()
             print(f"Loaded client story from: {args.story}")
-            print(f"Story preview: {initial_story[:100]}..." if len(initial_story) > 100 else f"Story: {initial_story}")
+            print(f"\n{initial_story}\n")
             print("-"*60)
         counselor = CAMIStory(goal=goal, behavior=behavior, model=args.model, context=args.context, initial_story=initial_story)
     else:  # default: simple
         crisis_mode = (args.context == "crisis")
         counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)
 
-    print("Counselor: Hello. How are you?\n")
+    # Get initial greeting from agent's messages (index 1 is first assistant message after system prompt)
+    initial_greeting = counselor.messages[1]["content"]
+    print(f"\n{initial_greeting}\n")
 
     while True:
         # Get user input
