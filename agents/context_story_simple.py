@@ -16,23 +16,14 @@ state2instruction = {
 }
 
 strategy2description = {
-    "Advise": "Give advice, makes a suggestion, offers a solution or possible action. For example, 'Consider starting with small, manageable changes like taking a short walk daily.'",
-    "Affirm": "Say something positive or complimentary to the client. For example, 'You did well by seeking help.'",
-    "Direct": "Give an order, command, direction. The language is imperative. For example, 'You've got to stop drinking.'",
-    "Emphasize Control": "Directly acknowledges or emphasizes the client's freedom of choice, autonomy, ability to decide, personal responsibility, etc. For example, 'It's up to you to decide whether to drink.'",
-    "Facilitate": "Provide simple utterances that function as 'keep going' acknowledgments encouraging the client to keep sharing. For example, 'Tell me more about that.'",
-    "Inform": "Give information to the client, explains something, or provides feedback. For example, 'This is a hormone that helps your body utilize sugar.'",
-    "Closed Question": "Ask a question in order to gather information, understand, or elicit the client's story. The question implies a short answer: Yes or no, a specific fact, a number, etc. For example, 'Did you use heroin this week?'",
-    "Open Question": "Ask a question in order to gather information, understand, or elicit the client's story. The question should be not closed questions, that leave latitude for response. For example, 'Can you tell me more about your drinking habits?'",
-    "Raise Concern": "Point out a possible problem with a client's goal, plan, or intention. For example, 'What do you think about my plan?'",
-    "Confront": "Directly disagrees, argues, corrects, shames, blames, seeks to persuade, criticizes, judges, labels, moralizes, ridicules, or questions the client's honesty. For example, 'What makes you think that you can get away with it?'",
-    "Simple Reflection": "Make a statement that reflects back content or meaning previously offered by the client, conveying shallow understanding without additional information. Add nothing at all to what the client has said, but simply repeat or restate it using some or all of the same words. For example, 'You don't want to do that.'",
-    "Complex Reflection": "Make a statement that reflects back content or meaning previously offered by the client, conveying deep understanding with additional information. Change or add to what the client has said in a significant way, to infer the client's meaning. For example, 'That's where you drew the line.'",
-    "Reframe": "Suggest a different meaning for an experience expressed by the client, placing it in a new light. For example, 'Maybe this setback is actually a sign that you're ready for change.'",
-    "Support": "Generally supportive, understanding comments that are not codable as Affirm or Reflect. For example, 'That must have been difficult for you.'",
-    "Warn": "Provide a warning or threat, implying negative consequences that will follow unless the client takes certain action. For example, 'You could go blind if you don't manage your blood sugar levels.'",
-    "Structure": "Give comments made to explain what is going to happen in the session, to make a transition from one part of a session to another, to help the client anticipate what will happen next, etc. For example, 'First, let's discuss your drinking, and then we can explore other issues.'",
-    "No Strategy": "Say something not related to behavior change. For example, 'Good morning!'",
+    "Natural Response": "Simply respond to exactly what the user said. No agenda, no techniques. If they asked a question, answer it directly. If they made a statement, acknowledge it. Just be a normal, helpful person having a conversation.",
+    "Affirm": "Say something positive or complimentary. For example, 'You did well by recognizing that.'",
+    "Facilitate": "Encourage them to keep sharing. For example, 'Tell me more about that.'",
+    "Simple Reflection": "Reflect back what they said simply. For example, 'So you're feeling uncertain about it.'",
+    "Complex Reflection": "Reflect back with deeper understanding. For example, 'It sounds like this is really weighing on you.'",
+    "Reframe": "Offer a different perspective. For example, 'Maybe this is actually a sign of growth.'",
+    "Support": "Show understanding and care. For example, 'That must have been difficult for you.'",
+    "Open Question": "Ask a question that invites them to share more. For example, 'What do you think is behind that feeling?'",
 }
 
 
@@ -103,35 +94,26 @@ Entry type: [type]
 #####################################################################
 
 # Prompt for selecting strategies
-select_strategy_prompt = """During motivational interviewing, the counselor should employ some counseling strategies tailored to the client's readiness to change, to effectively facilitate behavioral transformation. These counseling strategies are as follows:
+select_strategy_prompt = """As a journaling companion, choose how to respond to the user. Available response styles:
 
-- **Advise**: Give advice, makes a suggestion, offers a solution or possible action. For example, "Consider starting with small, manageable changes like taking a short walk daily."
-- **Affirm**: Say something positive or complimentary to the client. For example, "You did well by seeking help."
-- **Direct**: Give an order, command, direction. The language is imperative. For example, "You’ve got to stop drinking."
-- **Emphasize Control**: Directly acknowledges or emphasizes the client's freedom of choice, autonomy,ability to decide, personal responsibility, etc. For example, "It’s up to you to decide whether to drink."
-- **Facilitate**: Provide simple utterances that function as "keep going" acknowledgments encouraging the client to keep sharing.. For example, "Tell me more about that."
-- **Inform**: Give information to the client, explains something, or provides feedback. For example, "This is a hormone that helps your body utilize sugar."
-- **Closed Question**: Ask a question in order to gather information, understand,or elicit the client's story. The question implies a short answer: Yes or no, a specific fact, a number, etc. For example, "Did you use heroin this week?"
-- **Open Question**: Ask a question in order to gather information, understand,or elicit the client's story. The question should be not closed questions, that leave latitude for response. For example, "Can you tell me more about your drinking habits?"
-- **Raise Concern**: Point out a possible problem with a client's goal, plan, or intention. For example, "What do you think about my plan?"
-- **Confront**: Directly disagrees, argues, corrects, shames, blames, seeks to persuade, criticizes, judges, labels, moralizes, ridicules, or questions the client's honesty. For example, "What makes you think that you can get away with it?"
-- **Simple Reflection**: Make a statement that reflects back content or meaning previously offered by the client, conveying shallow understanding without additional information. Add nothing at all to what the client has said, but simply repeat or restate it using some or all of the same words. For example, "You don’t want to do that."
-- **Complex Reflection**: Make a statement that reflects back content or meaning previously offered by the client, conveying deep understanding with additional information. Change or add to what the client has said in a significant way, to infer the client's meaning. For example, "That’s where you drew the line."
-- **Reframe**: Suggest a different meaning for an experience expressed by the client, placing it in a new light. For example, "Maybe this setback is actually a sign that you're ready for change."
-- **Support**: Generally supportive, understanding comments that are not codable as Affirm or Reflect. For example, "That must have been difficult for you."
-- **Warn**: Provide a warning or threat, implying negative consequences that will follow unless the client takes certain action. For example, "You could go blind if you don’t manage your blood sugar levels."
-- **Structure**: Give comments made to explain what is going to happen in the session, to make a transition from one part of a session to another, to help the client anticipate what will happen next, etc. For example, "First, let’s discuss your drinking, and then we can explore other issues."
-- **No Strategy**: Say something not related to behavior change. For example, "Good morning!"
+- **Natural Response**: Simply respond to exactly what the user said. No agenda, no techniques. If they asked a question, answer it directly. If they made a statement, acknowledge it. Just be a normal, helpful person. USE THIS when the user asks a direct question or makes a specific request.
+- **Affirm**: Say something positive or complimentary. For example, "You did well by recognizing that."
+- **Facilitate**: Encourage them to keep sharing. For example, "Tell me more about that."
+- **Simple Reflection**: Reflect back what they said simply. For example, "So you're feeling uncertain about it."
+- **Complex Reflection**: Reflect back with deeper understanding. For example, "It sounds like this is really weighing on you."
+- **Reframe**: Offer a different perspective. For example, "Maybe this is actually a sign of growth."
+- **Support**: Show understanding and care. For example, "That must have been difficult for you."
+- **Open Question**: Ask a question that invites them to share more. For example, "What do you think is behind that feeling?"
 
-Based on the current counseling context and the client's state, analyze and select appropriate strategies **but no more than 2** for **next response** to optimally advance the counseling process.
+IMPORTANT: If the user asks a direct question or makes a specific request, select "Natural Response" to answer them directly.
 
 Given Current Context:
 {context}
 
-Client’s State:
+User's State:
 {state}: {state_instruction}
 
-Please analyse the current situation, then select appropriate strategies based on current topic and situation to motivate client after analysing. Remember, you can select up to 2 strategies.
+Select 1-2 response styles that fit what the user needs right now. Prefer "Natural Response" when they're asking for something specific.
 """
 
 # Response selection prompt

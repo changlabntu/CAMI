@@ -62,25 +62,23 @@ class StateInference(BaseModel):
 
 # Pydantic model for strategy selection
 class StrategySelection(BaseModel):
-    """Structured model for counseling strategy selection."""
+    """Structured model for response style selection."""
     VALID_STRATEGIES: ClassVar[List[str]] = [
-        "Advise", "Affirm", "Direct", "Emphasize Control", "Facilitate",
-        "Inform", "Closed Question", "Open Question", "Raise Concern",
-        "Confront", "Simple Reflection", "Complex Reflection", "Reframe",
-        "Support", "Warn", "Structure", "No Strategy"
+        "Natural Response", "Affirm", "Facilitate", "Simple Reflection",
+        "Complex Reflection", "Reframe", "Support", "Open Question"
     ]
 
     strategies: List[str] = Field(
-        description="List of selected counseling strategies. Valid options: " + ", ".join(VALID_STRATEGIES)
+        description="List of selected response styles. Valid options: " + ", ".join(VALID_STRATEGIES)
     )
     analysis: str = Field(
-        description="Analysis of the current situation and rationale for strategy selection"
+        description="Analysis of the current situation and rationale for response style selection"
     )
 
     @validator('strategies')
     def validate_strategies(cls, v):
         valid = [s for s in v if s in cls.VALID_STRATEGIES]
-        return valid if valid else ["No Strategy"]
+        return valid if valid else ["Natural Response"]
 
 
 # Pydantic model for story updates
@@ -269,32 +267,40 @@ class CAMIStory:
         return result.analysis, result.strategies
 
     def generate(self, last_utterance, state, selected_strategies):
-        """Generate candidate responses for each strategy and select the best one."""
-        state_instruction = self.state2instruction.get(state, "Unknown state")
+        """Generate a response based on selected strategy."""
 
-        # Include client story in the prompt if available
+        # If "Natural Response" is selected, just respond directly without fancy prompting
+        if "Natural Response" in selected_strategies:
+            story_context = ""
+            if self.client_story:
+                story_context = f"\n\nContext about this user:\n{self.client_story}\n"
+
+            prompt = f"""The user said:
+{last_utterance}
+
+{story_context}
+Respond naturally and directly. If they asked a question, answer it. If they asked for Y/N, just say Y or N. If they made a statement, acknowledge it simply. Be a normal person, not a therapist. Keep it brief.
+"""
+            self.messages[-1]["content"] = prompt
+            response = get_llm_response(chatbot_llm, self.messages)
+            response = " ".join(response.split("\n"))
+            response = response.replace("*", "").replace("#", "")
+            if not response.startswith("Counselor: "):
+                response = f"Counselor: {response}"
+            return response, "Natural Response"
+
+        # For other strategies, generate and select
+        state_instruction = self.state2instruction.get(state, "Unknown state")
         story_context = ""
         if self.client_story:
             story_context = f"\n\n### What we know about this user:\n{self.client_story}\n"
 
-        # Extract recent counselor responses to avoid repetition
-        conversation = self._get_conversation_text()
-        recent_counselor_responses = [
-            msg for msg in conversation[-10:]
-            if msg.startswith("Counselor:")
-        ][-3:]  # Last 3 counselor responses
-        avoid_repetition = ""
-        if recent_counselor_responses:
-            avoid_repetition = "\n\n### Previous Responses (DO NOT REPEAT these questions or phrases):\n" + "\n".join(recent_counselor_responses)
-
         prompt = f"""The user just wrote:
 {last_utterance}
 
-Based on their journal entry and the conversation so far, respond as a warm journaling companion.
+Respond as a warm journaling companion.
 The user's current state is: {state} - {state_instruction}
-{story_context}{avoid_repetition}
-
-Generate a response that acknowledges what the user shared and helps them reflect.
+{story_context}
 """
         candidate_responses = {}
         strategies = {}
@@ -303,7 +309,7 @@ Generate a response that acknowledges what the user shared and helps them reflec
         for strategy in selected_strategies:
             temp_prompt = (
                 prompt
-                + f"The professional counselor suggests using the following strategy:\n- **{strategy}**: {self.strategy2description[strategy]}\nPlease generate one utterance following the suggested strategy and shorter than 100 words."
+                + f"Use this response style:\n- **{strategy}**: {self.strategy2description[strategy]}\nGenerate a response under 100 words."
             )
             self.messages[-1]["content"] = temp_prompt
             response = get_llm_response(chatbot_llm, self.messages)
@@ -316,21 +322,9 @@ Generate a response that acknowledges what the user shared and helps them reflec
             candidate_responses[len(candidate_responses)] = response
             strategies[len(strategies)] = strategy
 
-        # Generate combined response
-        temp_prompt = prompt + "The professional counselor suggests using the following strategies:\n"
-        for strategy in selected_strategies:
-            temp_prompt += f"- **{strategy}**: {self.strategy2description[strategy]}\n"
-        temp_prompt += "Please generate a response combining all the suggested strategies. The generated utterance should be precise and shorter than 100 words."
-        self.messages[-1]["content"] = temp_prompt
-        response = get_llm_response(chatbot_llm, self.messages)
-        response = " ".join(response.split("\n"))
-        response = response.replace("*", "").replace("#", "")
-        if not response.startswith("Counselor: "):
-            response = f"Counselor: {response}"
-        if "Client: " in response:
-            response = response.split("Client: ")[0]
-        candidate_responses[len(candidate_responses)] = response
-        strategies[len(strategies)] = "Combined Strategies"
+        # If only one strategy, just return it
+        if len(candidate_responses) == 1:
+            return candidate_responses[0], strategies[0]
 
         # Select best response
         conversation = self._get_conversation_text()
@@ -349,7 +343,7 @@ Generate a response that acknowledges what the user shared and helps them reflec
         for i in candidate_responses.keys():
             if str(i + 1) in response:
                 return candidate_responses[i], strategies[i]
-        return candidate_responses[len(candidate_responses) - 1], strategies[len(strategies) - 1]
+        return candidate_responses[0], strategies[0]
 
     def receive(self, response):
         """Append client message to conversation history."""
