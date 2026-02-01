@@ -17,3 +17,5 @@ source .env
 
 # Simplified prompted client (LLM-based)
 python generate_prompted.py --model gpt-4o-mini --output_dir Output/ --round 1 --max_turns 20
+
+python talk_to_agent.py --agent story --story story/example.txt  --show-metadata --context story --model gpt-4-turbo
