@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """Interactive chat with counselor agent."""
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from agents import CAMI, CAMISimple
 from agents.agent_story import CAMIStory
 import argparse
