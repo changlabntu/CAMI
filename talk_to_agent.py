@@ -6,6 +6,7 @@ load_dotenv()
 
 from agents import CAMI, CAMISimple
 from agents.agent_story import CAMIStory
+from agents.agent_journal import JournalAgent
 import argparse
 
 
@@ -42,7 +43,7 @@ def main():
         "--scenario", type=str, default="suicidal", choices=list(DEFAULT_SCENARIOS.keys()),
         help="Predefined scenario to use (default: suicidal)"
     )
-    parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami", "story"],
+    parser.add_argument("--agent", type=str, default="simple", choices=["simple", "cami", "story", "journal"],
                         help="Agent type: simple (default) or cami (full MI with topics)")
     parser.add_argument("--context", type=str, default="cami", choices=["cami", "crisis", "story", "story_simple"],
                         help="Agent context: cami (default, MI-focused), crisis (DBT, safety-focused), or story (narrative therapy)")
@@ -59,6 +60,8 @@ def main():
     print("\n" + "="*60)
     if args.agent == "cami":
         print("CAMI - Full Motivational Interviewing Counselor (with topics)")
+    elif args.agent == "journal":
+        print("Journal Agent - CBT Structured Journaling")
     elif args.context == "crisis":
         print("Simple Agent - DBT Crisis Counselor (safety-focused)")
     elif args.context == "story":
@@ -68,11 +71,14 @@ def main():
     else:
         print("Simple Agent - MI Counselor")
 
-    print(f"Context: {args.context}")
-    print("="*60)
-    print(f"Goal: {goal}")
-    print(f"Behavior: {behavior}")
-    print("-"*60)
+    if args.agent != "journal":
+        print(f"Context: {args.context}")
+        print("="*60)
+        print(f"Goal: {goal}")
+        print(f"Behavior: {behavior}")
+        print("-"*60)
+    else:
+        print("="*60)
     print("Type 'quit' or 'exit' to end the session")
     print("Type 'state' to see current inferred state")
     if args.agent == "cami":
@@ -90,11 +96,16 @@ def main():
             print(f"Story: {initial_story[:]}")
             print("-"*60)
         counselor = CAMIStory(model=args.model, initial_story=initial_story)
+    elif args.agent == "journal":
+        counselor = JournalAgent(model=args.model)
     else:  # default: simple
         crisis_mode = (args.context == "crisis")
         counselor = CAMISimple(goal=goal, behavior=behavior, model=args.model, crisis_mode=crisis_mode)
 
-    print("Counselor: Hello. How are you?\n")
+    if args.agent == "journal":
+        print(f"{counselor.messages[1]['content']}\n")
+    else:
+        print("Counselor: Hello. How are you?\n")
 
     while True:
         # Get user input
