@@ -35,6 +35,14 @@ def main():
                 continue
             if user_input.lower() in ("quit", "exit", "q"):
                 break
+            if user_input.lower() == "reframe":
+                print("\n--- Reframed Journal Entry ---\n")
+                reframed = agent.reframe()
+                print(reframed)
+                if args.show_metadata and agent.last_metadata:
+                    m = agent.last_metadata
+                    print(f"\n  [{m['model']}] in: {m['input_tokens']} tokens | out: {m['output_tokens']} tokens | time: {m['elapsed_time']:.2f}s")
+                continue
             agent.receive(user_input)
             response = agent.reply()
             print(f"\n{response}")
