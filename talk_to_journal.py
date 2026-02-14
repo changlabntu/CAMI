@@ -2,21 +2,17 @@
 """Simple script to talk to the JournalAgent."""
 
 import argparse
-import importlib.util
 
 from dotenv import load_dotenv
 load_dotenv()
 
+from agents.agent_journal import JournalAgent as BaseJournalAgent, MODELS as base_models
+from agents.agent_journal_pin import JournalAgent as PinAgent, MODELS as pin_models
 
-def _load_agent_module(agent_type):
-    """Load the appropriate agent module via importlib to bypass agents/__init__.py."""
-    if agent_type == "pin":
-        spec = importlib.util.spec_from_file_location("agent_journal_pin", "agents/agent_journal_pin.py")
-    else:
-        spec = importlib.util.spec_from_file_location("agent_journal", "agents/agent_journal.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.JournalAgent, mod.MODELS
+AGENTS = {
+    "journal": (BaseJournalAgent, base_models),
+    "pin": (PinAgent, pin_models),
+}
 
 
 def main():
@@ -29,7 +25,7 @@ def main():
                         help="Show token usage and response time after each exchange")
     args = parser.parse_args()
 
-    JournalAgent, MODELS = _load_agent_module(args.agent)
+    JournalAgent, MODELS = AGENTS[args.agent]
 
     agent = JournalAgent(model=args.model)
 

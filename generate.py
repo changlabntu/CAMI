@@ -1,4 +1,6 @@
-from agents import Env, CAMI, Client
+from agents.env import Env
+from agents.cami import CAMI
+from agents.client import Client
 import json
 from tqdm import tqdm
 import os

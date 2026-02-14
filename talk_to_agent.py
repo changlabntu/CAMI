@@ -4,7 +4,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from agents import CAMI, CAMISimple
+from agents.cami import CAMI
+from agents.agent import CAMISimple
 from agents.agent_story import CAMIStory
 from agents.agent_journal import JournalAgent
 import argparse

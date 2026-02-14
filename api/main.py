@@ -3,7 +3,6 @@
 import os
 import time
 import uuid
-import importlib.util
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -12,12 +11,7 @@ from dotenv import load_dotenv
 # because it reads ANTHROPIC_API_KEY at module scope
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-# Direct import to bypass agents/__init__.py (which has broken imports for archived modules)
-_agent_path = os.path.join(os.path.dirname(__file__), "..", "agents", "agent_journal.py")
-_spec = importlib.util.spec_from_file_location("agent_journal", _agent_path)
-_agent_journal = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_agent_journal)
-JournalAgent = _agent_journal.JournalAgent
+from agents.agent_journal import JournalAgent
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

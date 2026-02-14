@@ -5,8 +5,8 @@ Journaling agent using CBT's emotion/cognition/behavior triangle.
 import os
 import time
 from datetime import datetime
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
+from .journal_common import MODELS, create_llm, openai_2_langchain
 
 ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "..", "archived")
 
@@ -86,14 +86,6 @@ def save_to_google_sheets(data):
         print(f"Error saving to Google Sheets: {e}")
         return False
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-
-MODELS = {
-    "opus": "claude-opus-4-5-20251101",
-    "sonnet": "claude-sonnet-4-20250514",
-}
-
-
 def load_prompts():
     """Load prompts from journal_prompt.txt file."""
     prompt_file = os.path.join(os.path.dirname(__file__), "journal_prompt.txt")
@@ -126,31 +118,6 @@ REFRAME_PROMPT = _prompts["REFRAME_PROMPT"]
 NARRATIVE_PROMPT = _prompts["NARRATIVE_PROMPT"]
 SUMMARIZE_PROMPT = _prompts["SUMMARIZE_PROMPT"]
 FEEDBACK_PROMPT = _prompts["FEEDBACK_PROMPT"]
-
-
-def create_llm(model_name="opus"):
-    """Create a ChatAnthropic LLM with the specified model."""
-    model_id = MODELS.get(model_name.lower(), MODELS["opus"])
-    return ChatAnthropic(
-        model=model_id,
-        temperature=0.7,
-        max_tokens=1024,
-        max_retries=5,
-        api_key=ANTHROPIC_API_KEY
-    )
-
-
-def openai_2_langchain(messages):
-    """Convert OpenAI message format to LangChain format."""
-    lc_messages = []
-    for msg in messages:
-        if msg["role"] == "system":
-            lc_messages.append(SystemMessage(content=msg["content"]))
-        elif msg["role"] == "user":
-            lc_messages.append(HumanMessage(content=msg["content"]))
-        elif msg["role"] == "assistant":
-            lc_messages.append(AIMessage(content=msg["content"]))
-    return lc_messages
 
 
 class JournalAgent:

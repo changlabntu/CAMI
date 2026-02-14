@@ -56,7 +56,6 @@ Agents store messages in OpenAI format (`[{"role": "system|user|assistant", "con
 ### FastAPI Backend (`api/`)
 
 - **`api/main.py`** — Wraps JournalAgent as a REST API. In-memory session store with 1-hour TTL.
-- Imports JournalAgent via `importlib` (same pattern as `talk_to_journal.py`) to avoid `agents/__init__.py`.
 - Loads `.env` from parent directory for API keys.
 - CORS allows all origins (dev mode).
 
@@ -88,7 +87,7 @@ Key components:
 
 ### CLI Entry Points
 
-- `talk_to_journal.py` — Interactive CLI for JournalAgent. Uses `importlib` to bypass `agents/__init__.py` (which imports modules with OpenAI dependencies).
+- `talk_to_journal.py` — Interactive CLI for JournalAgent.
 - `talk_to_agent.py` — Interactive CLI supporting all agent types with `--agent`, `--context`, `--scenario` flags.
 - `generate.py` / `notinuse/generate_prompted.py` — Batch conversation generation (older approach).
 
@@ -115,4 +114,21 @@ Key components:
 - Agent responses are prefixed with `"Counselor: "` in the message history.
 - Token usage and timing are tracked in `agent.last_metadata` after each `reply()` or `reframe()` call.
 - The `notinuse/` directory contains archived/experimental code — not imported by active agents.
-- `agents/__init__.py` imports Client, CAMI, CAMISimple, CAMIStory, Env — but JournalAgent is deliberately excluded (imported directly to avoid pulling in OpenAI dependencies).
+- `agents/__init__.py` is intentionally empty — all imports use explicit module paths (e.g. `from agents.agent_journal import JournalAgent`).
+- `agents/journal_common.py` contains shared helpers (`MODELS`, `create_llm()`, `openai_2_langchain()`) used by both journal agents.
+
+## Git Policy
+- Commit after each meaningful change, not at the end of a big task
+- Use conventional commit messages: `type(scope): short description`
+  - types: feat, fix, refactor, docs, style, test, chore
+  - examples:
+    - `feat(api): add session GET endpoint`
+    - `fix(chat): handle 90s timeout on slow LLM responses`
+    - `refactor(trackball): extract emotion description logic`
+- Keep commits small and focused — one logical change per commit
+- Never commit .env, API keys, or secrets
+- Never commit node_modules or __pycache__
+- Always commit from a feature branch, not main
+- Branch naming: `feature/short-description` or `fix/short-description`
+- Write a brief body in the commit message if the "why" isn't obvious from the title
+- Don't amend or force-push commits that have already been discussed
