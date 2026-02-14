@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-CAMI is a conversational AI counseling system with multiple specialized agents for mental health support. It uses LangChain with both Anthropic (Claude) and OpenAI (GPT-4o) backends. The project is transitioning from CLI-based prototypes to a React Native + Expo mobile app with a FastAPI backend (see PLAN.md for mobile architecture).
+CAMI is a conversational AI counseling system with multiple specialized agents for mental health support. It uses LangChain with both Anthropic (Claude) and OpenAI (GPT-4o) backends. The project has a working React Native + Expo mobile app with a FastAPI backend (see PLAN.md for full architecture spec).
 
 ## Running the Agents
 
@@ -20,10 +20,10 @@ python talk_to_agent.py --agent simple --context cami --scenario smoking --show-
 python talk_to_agent.py --agent cami --context crisis --scenario suicidal
 python talk_to_agent.py --agent story --context story --story story/example.txt
 
-# Planned: FastAPI backend
+# FastAPI backend (start first — mobile app depends on it)
 cd api && uvicorn main:app --reload --port 8000
 
-# Planned: Expo mobile app
+# Expo mobile app (press 'i' for iOS Simulator)
 cd mobile && npx expo start
 ```
 
@@ -53,7 +53,40 @@ Context modules (`agents/context_*.py`) define domain-specific prompts, state di
 
 Agents store messages in OpenAI format (`[{"role": "system|user|assistant", "content": "..."}]`) and convert to LangChain format (`SystemMessage`, `HumanMessage`, `AIMessage`) at inference time via `openai_2_langchain()`.
 
-### Entry Points
+### FastAPI Backend (`api/`)
+
+- **`api/main.py`** — Wraps JournalAgent as a REST API. In-memory session store with 1-hour TTL.
+- Imports JournalAgent via `importlib` (same pattern as `talk_to_journal.py`) to avoid `agents/__init__.py`.
+- Loads `.env` from parent directory for API keys.
+- CORS allows all origins (dev mode).
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/session` | POST | Create session with emotion coordinates (valence, support_type) |
+| `/session/{id}` | GET | Fetch session messages |
+| `/session/{id}/message` | POST | Send user message, get agent reply |
+| `/session/{id}/reframe` | POST | Reframe the original journal entry |
+
+- Emotion coordinates (-1..1) are mapped to natural language and appended to the system prompt.
+- "Counselor: " prefix is stripped from responses (mobile app uses bubble alignment instead).
+
+### Mobile App (`mobile/`)
+
+React Native + Expo (SDK 54) app with three screens:
+
+- **`app/_layout.tsx`** — Stack navigator with dark theme, wrapped in `GestureHandlerRootView`.
+- **`app/index.tsx`** — Welcome screen with 2D Trackball for emotion input (valence: bad↔good, support: compassion↔advice). "Start Journaling" button creates a session and navigates to chat.
+- **`app/chat.tsx`** — Chat screen with inverted FlatList, typing indicator, and reframe button (appears after 3+ exchanges).
+
+Key components:
+- **`components/Trackball.tsx`** — Circular gesture area using `react-native-gesture-handler` v2 + `react-native-reanimated`. Draggable ball clamped to circle radius.
+- **`components/ChatBubble.tsx`** — User messages right-aligned (accent), assistant left-aligned (gray).
+- **`components/ChatInput.tsx`** — Multiline text input with send button.
+- **`lib/api.ts`** — HTTP client targeting `localhost:8000` with 90-second timeout (Claude responses can be slow).
+
+**Note:** `react-native-worklets` must be pinned to 0.5.1 to match Expo Go's native binary. Higher versions cause a JS/native mismatch error.
+
+### CLI Entry Points
 
 - `talk_to_journal.py` — Interactive CLI for JournalAgent. Uses `importlib` to bypass `agents/__init__.py` (which imports modules with OpenAI dependencies).
 - `talk_to_agent.py` — Interactive CLI supporting all agent types with `--agent`, `--context`, `--scenario` flags.
@@ -65,10 +98,17 @@ Agents store messages in OpenAI format (`[{"role": "system|user|assistant", "con
 
 ## Key Dependencies
 
+**Python (agents + API):**
 - `langchain-anthropic`, `langchain-openai`, `langchain-core` — LLM integration
+- `fastapi`, `uvicorn` — REST API server
 - `pydantic` — Structured output parsing for state/strategy inference
 - `python-dotenv` — API key loading from `.env`
 - `regex` — Response parsing
+
+**Mobile (Expo):**
+- `expo` ~54, `expo-router` ~6 — App framework and file-based routing
+- `react-native-gesture-handler` ~2.28, `react-native-reanimated` ~4.1 — Trackball gestures/animations
+- `react-native-worklets` 0.5.1 (pinned) — Required by reanimated, must match Expo Go native version
 
 ## Conventions
 
