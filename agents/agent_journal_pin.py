@@ -159,6 +159,7 @@ class JournalAgent:
         self.model_name = model
         self.messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "assistant", "content": "Counselor: 今天想寫些什麼呢？"},
         ]
         self.last_metadata = None
         self.init_journal = None
