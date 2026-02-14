@@ -35,9 +35,15 @@ CAMI/
 
 **File:** `api/main.py`
 
-- Import `JournalAgent` from `agents/agent_journal.py` via `sys.path` insert
+- Import `JournalAgent` from `agents/agent_journal.py` via `__file__`-relative path insert:
+  ```python
+  import sys, os
+  sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+  ```
+  This ensures the API works regardless of which directory it's launched from.
 - Load `.env` from parent directory
 - In-memory session store: `dict[str, JournalAgent]`
+  - Sessions expire after 1 hour of inactivity (simple TTL check on each request)
 - CORS middleware (allow all for dev)
 
 **Endpoints:**
@@ -45,6 +51,7 @@ CAMI/
 | Endpoint | Method | Body | Returns |
 |---|---|---|---|
 | `/session` | POST | `{ valence: float, support_type: float, model?: str }` | `{ session_id, greeting }` |
+| `/session/{id}` | GET | — | `{ session_id, messages }` |
 | `/session/{id}/message` | POST | `{ content: str }` | `{ role, content, metadata }` |
 | `/session/{id}/reframe` | POST | — | `{ reframed_entry, metadata }` |
 
@@ -74,7 +81,12 @@ npx expo install react-native-reanimated react-native-gesture-handler
 - `app/_layout.tsx` — Stack navigator, dark theme
 - `app/index.tsx` — Welcome screen placeholder
 - `app/chat.tsx` — Chat screen placeholder
-- `lib/api.ts` — `createSession()`, `sendMessage()`, `reframe()` functions
+- `lib/api.ts` — `createSession()`, `getSession()`, `sendMessage()`, `reframe()` functions
+  - All fetch calls use a 90-second timeout (Claude Opus responses can take 10-30+ seconds):
+    ```typescript
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
+    ```
 
 ## Phase 3: Trackball Component (`components/Trackball.tsx`)
 
@@ -92,19 +104,19 @@ npx expo install react-native-reanimated react-native-gesture-handler
 **Welcome screen (`app/index.tsx`):**
 - Trackball component at center
 - Live text below trackball showing current emotion description
-- "Start Journaling" button → calls `POST /session`, navigates to `/chat` with `sessionId` + `greeting` as params
+- "Start Journaling" button → calls `POST /session`, navigates to `/chat` with `sessionId` as param; chat screen fetches greeting from `GET /session/{id}`
 
 ## Phase 4: Chat Screen (`app/chat.tsx`)
 
-- Read `sessionId` and `greeting` from route params via `useLocalSearchParams()`
-- Initialize messages with the greeting as first assistant message
+- Read `sessionId` from route params via `useLocalSearchParams()`
+- On mount, call `GET /session/{id}` to fetch messages (including the greeting); this also recovers state after crash or backgrounding
 - **FlatList** (inverted) for message rendering
 - **ChatBubble**: user messages right-aligned (accent color), assistant left-aligned (dark gray)
 - **ChatInput**: multiline TextInput + Send button, disabled while loading
 - **Send flow**: append user msg → call API → append assistant msg
 - **Typing indicator** (animated dots) while waiting for response
 - **KeyboardAvoidingView** with `behavior="padding"` for iOS
-- **Reframe button** in header — calls `/session/{id}/reframe`, displays result as a special styled message
+- **Reframe button** in header — only appears after 3+ exchanges; shows confirmation dialog before calling `/session/{id}/reframe`, displays result as a special styled message
 
 ## Implementation Order
 
