@@ -167,23 +167,43 @@ class JournalAgent:
         self.narrative_messages = []
         self.phase = "cbt"
 
-    def receive(self, user_input):
-        """Route user input to the current phase's receive method."""
-        if self.phase == "cbt":
-            self.cbt_receive(user_input)
-        elif self.phase == "narrative":
-            self.narrative_receive(user_input)
+    @property
+    def _current_messages(self):
+        """Return the message list for the current phase."""
+        if self.phase == "narrative":
+            return self.narrative_messages
         elif self.phase == "finalize":
-            self.finalize_receive(user_input)
+            return self.finalize_messages
+        return self.messages
+
+    def _invoke(self, messages):
+        """Invoke LLM and record metadata. Returns the response content string."""
+        lc_messages = openai_2_langchain(messages)
+        start_time = time.time()
+        response = self.llm.invoke(lc_messages)
+        elapsed_time = time.time() - start_time
+
+        usage = response.response_metadata.get("usage", {})
+        self.last_metadata = {
+            "input_tokens": usage.get("input_tokens", 0),
+            "output_tokens": usage.get("output_tokens", 0),
+            "elapsed_time": elapsed_time,
+            "model": self.model_name,
+        }
+        return response.content
+
+    def receive(self, user_input):
+        """Store user input into the current phase's message list."""
+        if self.phase == "cbt" and self.init_journal is None:
+            self.init_journal = user_input
+        self._current_messages.append({"role": "user", "content": user_input})
 
     def reply(self):
-        """Route reply generation to the current phase's reply method."""
-        if self.phase == "cbt":
-            return self.cbt_reply()
-        elif self.phase == "narrative":
-            return self.narrative_reply()
-        elif self.phase == "finalize":
-            return self.finalize_reply()
+        """Generate and return an LLM reply for the current phase."""
+        msgs = self._current_messages
+        response_text = self._invoke(msgs)
+        msgs.append({"role": "assistant", "content": response_text})
+        return response_text
 
     def generate_prompts(self):
         """Generate journaling prompt suggestions on demand."""
@@ -206,31 +226,6 @@ class JournalAgent:
             f.write(content)
         return filepath
 
-    def cbt_receive(self, user_input):
-        if self.init_journal is None:
-            self.init_journal = user_input
-        self.messages.append({"role": "user", "content": user_input})
-
-    def cbt_reply(self):
-        lc_messages = openai_2_langchain(self.messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        # Extract token usage from response metadata
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        response_text = response.content
-        self.messages.append({"role": "assistant", "content": response_text})
-        return response_text
-
     def reframe(self):
         """Reframe the initial journal entry based on the conversation."""
         if not self.init_journal:
@@ -249,21 +244,7 @@ class JournalAgent:
         )
 
         reframe_messages = [{"role": "user", "content": prompt}]
-        lc_messages = openai_2_langchain(reframe_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        reframed = response.content
+        reframed = self._invoke(reframe_messages)
         self.reframed_journal = reframed
         return reframed
 
@@ -292,45 +273,7 @@ class JournalAgent:
         ]
 
         # Get the first question from the LLM
-        lc_messages = openai_2_langchain(self.narrative_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        response_text = response.content
-        self.narrative_messages.append({"role": "assistant", "content": response_text})
-        return response_text
-
-    def narrative_receive(self, user_input):
-        """Receive user input during narrative therapy session."""
-        self.narrative_messages.append({"role": "user", "content": user_input})
-
-    def narrative_reply(self):
-        """Generate a reply during narrative therapy session."""
-        lc_messages = openai_2_langchain(self.narrative_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        response_text = response.content
+        response_text = self._invoke(self.narrative_messages)
         self.narrative_messages.append({"role": "assistant", "content": response_text})
         return response_text
 
@@ -352,21 +295,7 @@ class JournalAgent:
         )
 
         summarize_messages = [{"role": "user", "content": prompt}]
-        lc_messages = openai_2_langchain(summarize_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        summary = response.content
+        summary = self._invoke(summarize_messages)
         self.final_summary = summary
         return summary
 
@@ -389,45 +318,7 @@ class JournalAgent:
             {"role": "user", "content": f"我把日記取名為「{title}」。"},
         ]
 
-        lc_messages = openai_2_langchain(self.finalize_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        response_text = response.content
-        self.finalize_messages.append({"role": "assistant", "content": response_text})
-        return response_text
-
-    def finalize_receive(self, user_input):
-        """Receive user input during finalize phase."""
-        self.finalize_messages.append({"role": "user", "content": user_input})
-
-    def finalize_reply(self):
-        """Generate reply during finalize phase (emotion reflection)."""
-        lc_messages = openai_2_langchain(self.finalize_messages)
-
-        start_time = time.time()
-        response = self.llm.invoke(lc_messages)
-        elapsed_time = time.time() - start_time
-
-        usage = response.response_metadata.get("usage", {})
-        self.last_metadata = {
-            "input_tokens": usage.get("input_tokens", 0),
-            "output_tokens": usage.get("output_tokens", 0),
-            "elapsed_time": elapsed_time,
-            "model": self.model_name,
-        }
-
-        response_text = response.content
+        response_text = self._invoke(self.finalize_messages)
         self.finalize_messages.append({"role": "assistant", "content": response_text})
         return response_text
 
