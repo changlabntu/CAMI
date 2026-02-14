@@ -177,3 +177,5 @@ cython_debug/
 /AnnoMI/
 /dumps/
 /output/
+.DS_Store
+.DS_Store
