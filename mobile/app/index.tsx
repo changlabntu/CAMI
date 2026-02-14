@@ -32,6 +32,7 @@ export default function WelcomeScreen() {
   const [valence, setValence] = useState(0);
   const [supportType, setSupportType] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [agent, setAgent] = useState<"journal" | "pin">("journal");
 
   function handlePositionChange(v: number, s: number) {
     setValence(v);
@@ -41,7 +42,7 @@ export default function WelcomeScreen() {
   async function handleStart() {
     setLoading(true);
     try {
-      const session = await createSession(valence, supportType);
+      const session = await createSession(valence, supportType, undefined, agent);
       router.push({ pathname: "/chat", params: { sessionId: session.session_id } });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create session";
@@ -55,6 +56,21 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>CAMI</Text>
 
+      <View style={styles.toggle}>
+        <Pressable
+          style={[styles.toggleButton, styles.toggleButtonLeft, agent === "journal" && styles.toggleButtonActive]}
+          onPress={() => setAgent("journal")}
+        >
+          <Text style={[styles.toggleText, agent === "journal" && styles.toggleTextActive]}>Journal</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.toggleButton, styles.toggleButtonRight, agent === "pin" && styles.toggleButtonActive]}
+          onPress={() => setAgent("pin")}
+        >
+          <Text style={[styles.toggleText, agent === "pin" && styles.toggleTextActive]}>Pin</Text>
+        </Pressable>
+      </View>
+
       <Trackball onPositionChange={handlePositionChange} />
 
       <Text style={styles.description}>{describeEmotion(valence, supportType)}</Text>
@@ -67,7 +83,7 @@ export default function WelcomeScreen() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Start Journaling</Text>
+          <Text style={styles.buttonText}>{agent === "pin" ? "開始書寫" : "Start Journaling"}</Text>
         )}
       </Pressable>
     </View>
@@ -85,7 +101,35 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  toggle: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  toggleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    backgroundColor: "#2a2a2a",
+  },
+  toggleButtonLeft: {
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  toggleButtonRight: {
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  toggleButtonActive: {
+    backgroundColor: "#5E8CFF",
+  },
+  toggleText: {
+    color: "#888",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  toggleTextActive: {
+    color: "#fff",
   },
   description: {
     color: "#aaa",

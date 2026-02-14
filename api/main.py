@@ -17,6 +17,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from agents.agent_journal import JournalAgent
+from agents.agent_journal_pin import JournalAgent as PinAgent
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +30,7 @@ class CreateSessionRequest(BaseModel):
     valence: float = Field(..., ge=-1.0, le=1.0)
     support_type: float = Field(..., ge=-1.0, le=1.0)
     model: Optional[str] = Field("sonnet")
+    agent: Optional[str] = Field("journal")  # "journal" or "pin"
 
 
 class SendMessageRequest(BaseModel):
@@ -128,7 +130,8 @@ app.add_middleware(
 
 @app.post("/session", response_model=CreateSessionResponse)
 def create_session(request: CreateSessionRequest):
-    agent = JournalAgent(model=request.model or "sonnet")
+    AgentClass = PinAgent if request.agent == "pin" else JournalAgent
+    agent = AgentClass(model=request.model or "sonnet")
 
     # Append emotion description to system prompt
     agent.messages[0]["content"] += describe_emotion(request.valence, request.support_type)
