@@ -1,6 +1,7 @@
 """CAMI Journal API — FastAPI backend wrapping JournalAgent."""
 
 import os
+import sys
 import time
 import uuid
 from typing import Optional
@@ -10,6 +11,10 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of api/) — MUST run before importing agent_journal
 # because it reads ANTHROPIC_API_KEY at module scope
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+# Add project root to sys.path so `agents` package is importable
+# (uvicorn runs from api/, so the parent dir isn't on sys.path by default)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from agents.agent_journal import JournalAgent
 
