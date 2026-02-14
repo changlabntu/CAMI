@@ -15,9 +15,9 @@ MODELS = {
     "sonnet": "claude-sonnet-4-20250514",
 }
 
-SYSTEM_PROMPT = """Act as a psychologist helping me write a structured journal. Using the emotion/cognition/behavior triangle from CBT, ask questions to help me expand the emotional, cognitive, and behavioral aspects of my journal entry. Ask only one question at a time."""
+SYSTEM_PROMPT = """Act as a psychologist helping me write a structured journal. Using the emotion/cognition/behavior triangle from CBT, ask questions to help me expand the emotional, cognitive, and behavioral aspects of my journal entry. Ask only one question at a time. Ask whether I want to stop when you think the three aspects are well covered."""
 
-REFRAME_PROMPT = """Based on the journaling conversation below, rewrite the original journal entry to be more complete and insightful. Incorporate the emotions, thoughts, and behaviors that were explored during the session. Write in first person, as if the user is writing their own journal. Keep the personal, authentic voice of the original entry while expanding it with the insights gained.
+REFRAME_PROMPT = """Based on the journaling conversation below, rewrite the original journal entry to be more complete and insightful. Incorporate the emotions, thoughts, and behaviors that were explored during the session. Write in first person, as if the user is writing their own journal, do not engage in too much reflections of the therapist, keep the personal, authentic voice of the original entry."""
 
 ### Original Journal Entry:
 {init_journal}
