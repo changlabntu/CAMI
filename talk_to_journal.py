@@ -15,12 +15,6 @@ AGENTS = {
 }
 
 
-def print_metadata(agent):
-    if agent.last_metadata:
-        m = agent.last_metadata
-        print(f"\n  [{m['model']}] in: {m['input_tokens']} tokens | out: {m['output_tokens']} tokens | time: {m['elapsed_time']:.2f}s")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Talk to the Journal Agent")
     parser.add_argument("--agent", choices=["journal", "pin"], default="journal",
@@ -38,8 +32,6 @@ def main():
     print(f"Using model: {MODELS[args.model]}")
     print(agent.messages[-1]["content"])
 
-    is_pin = args.agent == "pin"
-
     while True:
         try:
             user_input = input("\nYou: ").strip()
@@ -47,52 +39,21 @@ def main():
                 continue
             if user_input.lower() in ("quit", "exit", "q"):
                 break
-
             if user_input.lower() == "reframe":
                 print("\n--- Reframed Journal Entry ---\n")
                 reframed = agent.reframe()
                 print(reframed)
-                if args.show_metadata:
-                    print_metadata(agent)
-                if is_pin:
-                    print("\n(Type 'next' to continue to narrative therapy)")
+                if args.show_metadata and agent.last_metadata:
+                    m = agent.last_metadata
+                    print(f"\n  [{m['model']}] in: {m['input_tokens']} tokens | out: {m['output_tokens']} tokens | time: {m['elapsed_time']:.2f}s")
                 continue
-
-            if user_input.lower() == "next" and is_pin:
-                print("\n--- Narrative Therapy Session ---\n")
-                response = agent.start_narrative()
-                print(f"\n{response}")
-                if args.show_metadata:
-                    print_metadata(agent)
-                print("\n(Type 'summarize' when ready to wrap up)")
-                continue
-
-            if user_input.lower() == "summarize" and is_pin:
-                print("\n--- Reflection Summary ---\n")
-                summary = agent.summarize()
-                print(summary)
-                if args.show_metadata:
-                    print_metadata(agent)
-                title = input("\nJournal title: ").strip()
-                if not title or title.lower() in ("quit", "exit", "q"):
-                    break
-                print("\n--- Finalizing Journal ---\n")
-                response = agent.finalize(title)
-                print(f"\n{response}")
-                if args.show_metadata:
-                    print_metadata(agent)
-                print("\n(Type 'end' to finish)")
-                continue
-
-            if user_input.lower() == "end" and is_pin:
-                break
-
             agent.receive(user_input)
             response = agent.reply()
             print(f"\n{response}")
 
-            if args.show_metadata:
-                print_metadata(agent)
+            if args.show_metadata and agent.last_metadata:
+                m = agent.last_metadata
+                print(f"\n  [{m['model']}] in: {m['input_tokens']} tokens | out: {m['output_tokens']} tokens | time: {m['elapsed_time']:.2f}s")
         except KeyboardInterrupt:
             break
 
