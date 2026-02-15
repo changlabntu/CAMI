@@ -4,87 +4,9 @@ Journaling agent using CBT's emotion/cognition/behavior triangle.
 
 import os
 import time
-from datetime import datetime
 
 from .journal_common import MODELS, create_llm, openai_2_langchain
 
-ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "..", "archived")
-
-# Google Sheets configuration
-GOOGLE_SHEETS_CREDENTIALS = os.path.join(os.path.dirname(__file__), "..", "credentials.json")
-GOOGLE_SHEET_NAME = os.getenv("GOOGLE_SHEET_NAME", "Journaling feedback")
-
-
-def save_to_google_sheets(data):
-    """Save feedback data to Google Sheets.
-
-    Args:
-        data: dict with keys 'timestamp' and 'feedback'
-
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        import gspread
-        from google.oauth2.service_account import Credentials
-    except ImportError:
-        print("Please install gspread: pip install gspread google-auth")
-        return False
-
-    try:
-        scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive'
-        ]
-
-        # Try Streamlit secrets first (for cloud deployment)
-        try:
-            import streamlit as st
-            if "gcp_service_account" in st.secrets:
-                credentials = Credentials.from_service_account_info(
-                    st.secrets["gcp_service_account"],
-                    scopes=scopes
-                )
-            else:
-                raise KeyError("No gcp_service_account in secrets")
-        except Exception:
-            # Fall back to credentials file (for local development)
-            if not os.path.exists(GOOGLE_SHEETS_CREDENTIALS):
-                print(f"Credentials file not found: {GOOGLE_SHEETS_CREDENTIALS}")
-                return False
-            credentials = Credentials.from_service_account_file(GOOGLE_SHEETS_CREDENTIALS, scopes=scopes)
-
-        client = gspread.authorize(credentials)
-
-        # Open the spreadsheet (create if not exists)
-        try:
-            spreadsheet = client.open(GOOGLE_SHEET_NAME)
-        except gspread.SpreadsheetNotFound:
-            spreadsheet = client.create(GOOGLE_SHEET_NAME)
-
-        worksheet = spreadsheet.sheet1
-
-        # Add headers if sheet is empty
-        if worksheet.row_count == 0 or worksheet.cell(1, 1).value is None:
-            headers = ['時間', '心得回饋', 'CBT對話', 'CBT日記', '敘事對話', '重塑日記', '回饋對話']
-            worksheet.append_row(headers)
-
-        # Append the data row
-        row = [
-            data.get('timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
-            data.get('feedback', ''),
-            data.get('cbt_conversation', ''),
-            data.get('cbt_journal', ''),
-            data.get('narrative_conversation', ''),
-            data.get('reframed_journal', ''),
-            data.get('finalize_conversation', '')
-        ]
-        worksheet.append_row(row)
-        return True
-
-    except Exception as e:
-        print(f"Error saving to Google Sheets: {e}")
-        return False
 
 def load_prompts():
     """Load prompts from journal_prompt.txt file."""
@@ -172,27 +94,6 @@ class JournalAgent:
         response_text = self._invoke(msgs)
         msgs.append({"role": "assistant", "content": response_text})
         return response_text
-
-    def generate_prompts(self):
-        """Generate journaling prompt suggestions on demand."""
-        prompt_request = [
-            {"role": "system", "content": "用繁體中文產生 3-4 個不同的日記書寫靈感。保持簡短且親切。不要使用表情符號。"},
-            {"role": "user", "content": "給我一些書寫靈感來幫助我開始。"},
-        ]
-        lc_messages = openai_2_langchain(prompt_request)
-        response = self.llm.invoke(lc_messages)
-        prompts = response.content
-        self.messages.append({"role": "assistant", "content": prompts})
-        return prompts
-
-    def _save_to_archive(self, content, stage):
-        """Save content to archived/ directory."""
-        os.makedirs(ARCHIVE_DIR, exist_ok=True)
-        filename = f"{stage}.txt"
-        filepath = os.path.join(ARCHIVE_DIR, filename)
-        with open(filepath, "w") as f:
-            f.write(content)
-        return filepath
 
     def reframe(self):
         """Reframe the initial journal entry based on the conversation."""
@@ -289,52 +190,3 @@ class JournalAgent:
         response_text = self._invoke(self.finalize_messages)
         self.finalize_messages.append({"role": "assistant", "content": response_text})
         return response_text
-
-    @property
-    def feedback_complete(self):
-        """Check if feedback conversation is complete (after 2 user exchanges)."""
-        # finalize_messages: system, user(title), assistant, user, assistant, user, assistant = 7
-        return hasattr(self, 'finalize_messages') and len(self.finalize_messages) >= 7
-
-    def _format_conversation(self, messages, skip_first=1):
-        """Format messages into a readable conversation string."""
-        lines = []
-        for msg in messages[skip_first:]:
-            if msg["role"] == "system":
-                continue
-            role = "用戶" if msg["role"] == "user" else "助理"
-            lines.append(f"{role}: {msg['content']}")
-        return "\n\n".join(lines)
-
-    def save_feedback(self, user_feedback):
-        """Save user feedback and conversations to Google Sheets.
-
-        Args:
-            user_feedback: User's feedback text
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        # Format CBT conversation (skip system message)
-        cbt_conv = self._format_conversation(self.messages, skip_first=1)
-
-        # Format narrative conversation (skip system and kickoff)
-        narrative_conv = ""
-        if hasattr(self, 'narrative_messages') and self.narrative_messages:
-            narrative_conv = self._format_conversation(self.narrative_messages, skip_first=2)
-
-        # Format finalize conversation (skip system and title message)
-        finalize_conv = ""
-        if hasattr(self, 'finalize_messages') and self.finalize_messages:
-            finalize_conv = self._format_conversation(self.finalize_messages, skip_first=2)
-
-        data = {
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'feedback': user_feedback,
-            'cbt_conversation': cbt_conv,
-            'cbt_journal': getattr(self, 'reframed_journal', ''),
-            'narrative_conversation': narrative_conv,
-            'reframed_journal': getattr(self, 'final_summary', ''),
-            'finalize_conversation': finalize_conv
-        }
-        return save_to_google_sheets(data)

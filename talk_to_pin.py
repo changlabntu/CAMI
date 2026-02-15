@@ -3,6 +3,7 @@
 
 import argparse
 import importlib.util
+import os
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -13,6 +14,16 @@ agent_journal = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(agent_journal)
 JournalAgent = agent_journal.JournalAgent
 MODELS = agent_journal.MODELS
+
+ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "archived")
+
+
+def save_to_archive(content, stage):
+    """Save content to archived/ directory."""
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    filepath = os.path.join(ARCHIVE_DIR, f"{stage}.txt")
+    with open(filepath, "w") as f:
+        f.write(content)
 
 
 def print_metadata(agent, show_metadata):
@@ -34,7 +45,7 @@ def get_input():
 
 def run_finalize(agent, title, show_metadata):
     """Run the finalize phase: emotion check and archive."""
-    agent._save_to_archive(agent.final_summary, "summarize")
+    save_to_archive(agent.final_summary, "summarize")
     print("\n--- Finalizing Journal ---\n")
 
     response = agent.finalize(title)
@@ -115,7 +126,7 @@ def run_cbt(agent, show_metadata):
 
             # Move to narrative phase
             if user_input.lower() == "next":
-                agent._save_to_archive(agent.reframed_journal, "reframe")
+                save_to_archive(agent.reframed_journal, "reframe")
                 print("\n--- Narrative Therapy Session ---\n")
                 response = agent.start_narrative()
                 print(f"\n{response}")
