@@ -59,6 +59,11 @@ def run_session(agent, show_metadata):
                     continue
 
                 if cmd == "next":
+                    if not agent.reframed_journal:
+                        print("\n--- Reframing first... ---\n")
+                        reframed = agent.reframe()
+                        print(reframed)
+                        print_metadata(agent, show_metadata)
                     save_to_archive(agent.reframed_journal, "reframe")
                     print("\n--- Narrative Therapy Session ---\n")
                     response = agent.start_narrative()
