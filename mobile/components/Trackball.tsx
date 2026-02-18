@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   circle: {
     borderWidth: 1.5,
-    borderColor: "#333",
+    borderColor: "#5A5D3E",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -109,11 +109,11 @@ const styles = StyleSheet.create({
     width: BALL_SIZE,
     height: BALL_SIZE,
     borderRadius: BALL_RADIUS,
-    backgroundColor: "#5E8CFF",
+    backgroundColor: "#9BDEAC",
   },
   label: {
     position: "absolute",
-    color: "#888",
+    color: "#A0B890",
     fontSize: 13,
   },
   labelLeft: {

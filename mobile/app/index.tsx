@@ -61,7 +61,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>CAMI</Text>
+      <Text style={styles.title}>Vocalise</Text>
 
       <View style={styles.toggle}>
         <Pressable
@@ -88,7 +88,7 @@ export default function WelcomeScreen() {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#F0F5ED" />
         ) : (
           <Text style={styles.buttonText}>{agent === "pin" ? "開始書寫" : "Start Journaling"}</Text>
         )}
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   title: {
-    color: "#fff",
+    color: "#F0F5ED",
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 16,
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   toggleButton: {
     paddingVertical: 8,
     paddingHorizontal: 20,
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#555838",
   },
   toggleButtonLeft: {
     borderTopLeftRadius: 8,
@@ -128,25 +128,25 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 8,
   },
   toggleButtonActive: {
-    backgroundColor: "#5E8CFF",
+    backgroundColor: "#59A96A",
   },
   toggleText: {
-    color: "#888",
+    color: "#A0B890",
     fontSize: 15,
     fontWeight: "600",
   },
   toggleTextActive: {
-    color: "#fff",
+    color: "#F0F5ED",
   },
   description: {
-    color: "#aaa",
+    color: "#A0B890",
     fontSize: 15,
     marginTop: 16,
     textAlign: "center",
   },
   button: {
     marginTop: 32,
-    backgroundColor: "#5E8CFF",
+    backgroundColor: "#59A96A",
     paddingVertical: 14,
     paddingHorizontal: 40,
     borderRadius: 12,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: "#fff",
+    color: "#F0F5ED",
     fontSize: 17,
     fontWeight: "600",
   },

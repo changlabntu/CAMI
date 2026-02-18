@@ -1,31 +1,53 @@
 import { View, Text, StyleSheet } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface ChatBubbleProps {
   role: "user" | "assistant";
   content: string;
   isReframe?: boolean;
+  isHighlighted?: boolean;
 }
 
-export default function ChatBubble({ role, content, isReframe }: ChatBubbleProps) {
+export default function ChatBubble({ role, content, isReframe, isHighlighted }: ChatBubbleProps) {
   const isUser = role === "user";
+  const useGradient = !isUser && !isReframe;
+
+  const bubbleStyle = [
+    styles.bubble,
+    isUser
+      ? styles.bubbleUser
+      : isReframe
+        ? styles.bubbleReframe
+        : undefined,
+    isHighlighted && styles.bubbleHighlighted,
+  ];
+
+  const inner = (
+    <>
+      {isReframe && (
+        <Text style={styles.reframeHeader}>Reframed Journal Entry</Text>
+      )}
+      <Text style={styles.text}>{content}</Text>
+    </>
+  );
 
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? styles.bubbleUser
-            : isReframe
-              ? styles.bubbleReframe
-              : styles.bubbleAssistant,
-        ]}
-      >
-        {isReframe && (
-          <Text style={styles.reframeHeader}>Reframed Journal Entry</Text>
-        )}
-        <Text style={styles.text}>{content}</Text>
-      </View>
+      {useGradient ? (
+        <LinearGradient
+          colors={["#1E4229", "#152E1E", "#0D1F16"]}
+          locations={[0, 0.45, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.bubble, isHighlighted && styles.bubbleHighlighted]}
+        >
+          {inner}
+        </LinearGradient>
+      ) : (
+        <View style={bubbleStyle}>
+          {inner}
+        </View>
+      )}
     </View>
   );
 }
@@ -46,24 +68,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
+    overflow: "hidden",
   },
   bubbleUser: {
-    backgroundColor: "#5E8CFF",
-  },
-  bubbleAssistant: {
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "#636940",
   },
   bubbleReframe: {
-    backgroundColor: "#1a3a2a",
+    backgroundColor: "#3A5A3A",
+  },
+  bubbleHighlighted: {
+    borderWidth: 1,
+    borderColor: "#B4E7CE",
   },
   reframeHeader: {
-    color: "#8fdfb0",
+    color: "#B4E7CE",
     fontSize: 13,
     fontStyle: "italic",
     marginBottom: 6,
   },
   text: {
-    color: "#fff",
+    color: "#F0F5ED",
     fontSize: 15,
     lineHeight: 21,
   },

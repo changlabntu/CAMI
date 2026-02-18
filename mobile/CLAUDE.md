@@ -1,85 +1,61 @@
-# CLAUDE.md — Mobile Frontend
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What This Is
 
-React Native + Expo (SDK 54) mobile app for CAMI. Two-screen flow: a welcome screen with a 2D emotion trackball, then a chat-based journaling session powered by the FastAPI backend (`../api/`).
+The Expo (SDK 54) mobile frontend for CAMI — a conversational AI journaling app for mental health. Connects to a FastAPI backend at `localhost:8000`. See the parent `../CLAUDE.md` for full-system context (agents, API, CLI).
 
-## Running
+## Development
 
 ```bash
-# 1. Start the API backend first (required)
+# Start the Expo dev server (press 'i' for iOS Simulator)
+npx expo start
+
+# The FastAPI backend must be running first
 cd ../api && uvicorn main:app --reload --port 8000
-
-# 2. Start Expo, press 'i' for iOS Simulator
-npx expo start --clear
 ```
 
-No test suite or linter. TypeScript strict mode is on (`tsconfig.json`).
+No tests exist in the mobile directory. After changing API-facing behavior, run the integration test from the project root:
 
-## Structure
-
-```
-mobile/
-├── app/
-│   ├── _layout.tsx        # Stack navigator, dark theme, GestureHandlerRootView wrapper
-│   ├── index.tsx          # Welcome screen — Trackball + "Start Journaling" button
-│   └── chat.tsx           # Chat screen — message list, send, reframe
-├── components/
-│   ├── Trackball.tsx      # 2D pan gesture for emotion input
-│   ├── ChatBubble.tsx     # Message bubble (user/assistant/reframe variants)
-│   └── ChatInput.tsx      # Multiline text input + send button
-├── lib/
-│   └── api.ts             # HTTP client for FastAPI backend
-├── app.json               # Expo config (dark UI, portrait, new arch enabled)
-├── package.json
-└── tsconfig.json
+```bash
+source ../.env && python ../test_api.py
 ```
 
-## Screen Flow
+## Architecture
 
-1. **Welcome** (`index.tsx`) — User drags ball on Trackball to set emotion coordinates. Live text shows description ("Feeling somewhat down, wanting compassion"). "Start Journaling" calls `POST /session` with valence + support_type, navigates to chat with `sessionId`.
+Expo Router (file-based routing) with two screens and a shared layout:
 
-2. **Chat** (`chat.tsx`) — Loads existing messages from `GET /session/{id}` on mount. Inverted FlatList for messages. Typing indicator ("...") shown while waiting. "Reframe" button appears in header after 3+ exchanges; shows confirmation dialog, calls `POST /session/{id}/reframe`, displays result as a special green-tinted bubble.
+- **`app/_layout.tsx`** — Root `Stack` navigator wrapped in `GestureHandlerRootView` (required for gesture-handler v2). Defines dark theme colors.
+- **`app/index.tsx`** — Welcome screen. Renders `Trackball` for 2D emotion input (valence × support type, both normalized to [-1, 1]). Has a Journal/Pin agent toggle. Calls `createSession()` then navigates to `/chat` with `sessionId`.
+- **`app/chat.tsx`** — Chat screen. Inverted `FlatList` for messages, typing indicator (`"..."` placeholder), optimistic message insertion on send, and a reframe button that appears in the header after 3+ exchanges.
 
-## Key Components
+### Components
 
-### Trackball (`components/Trackball.tsx`)
-- 260px circular area with 50px draggable ball
-- Uses `Gesture.Pan()` (gesture-handler v2) + `useSharedValue`/`useAnimatedStyle` (reanimated)
-- `clamp()` runs as a worklet to constrain ball within circle
-- Outputs: `valence = x/radius` (-1..1), `supportType = -y/radius` (-1..1)
-- Axis labels: Left=Bad, Right=Good, Top=Advice, Bottom=Compassion
+- **`Trackball.tsx`** — `Gesture.Pan()` + `useSharedValue`/`useAnimatedStyle`. The `clamp()` helper is annotated `"worklet"` to run on the UI thread; `runOnJS()` bridges the position callback back to JS.
+- **`ChatBubble.tsx`** — User (right, blue `#5E8CFF`), assistant (left, `#2a2a2a`), reframe (left, green `#1a3a2a` with italic header).
+- **`ChatInput.tsx`** — Multiline input, max 100px height. Send button disables when empty or `disabled` prop is true.
 
-### ChatBubble (`components/ChatBubble.tsx`)
-- User: right-aligned, blue (`#5E8CFF`)
-- Assistant: left-aligned, dark gray (`#2a2a2a`)
-- Reframe: left-aligned, green-tinted (`#1a3a2a`) with italic header
+### API Client (`lib/api.ts`)
 
-### ChatInput (`components/ChatInput.tsx`)
-- Multiline TextInput, disabled during loading
-- Send button grayed out when empty or loading
-
-## API Client (`lib/api.ts`)
-
-All requests target `http://localhost:8000` with 90-second timeout (Claude responses can take 10-30+ seconds).
+All HTTP goes through a private `request<T>()` wrapper with 90-second `AbortController` timeout (Claude responses are slow). Targets `http://localhost:8000`.
 
 | Function | Endpoint | Notes |
 |---|---|---|
-| `createSession(valence, supportType)` | `POST /session` | Returns `session_id` + `greeting` |
-| `getSession(sessionId)` | `GET /session/{id}` | Returns message history |
-| `sendMessage(sessionId, content)` | `POST /session/{id}/message` | Returns assistant reply |
+| `createSession(valence, supportType, model?, agent?)` | `POST /session` | Defaults: model `"sonnet"`, agent `"journal"` |
+| `getSession(sessionId)` | `GET /session/{id}` | Returns full message history |
+| `sendMessage(sessionId, content)` | `POST /session/{id}/message` | Returns agent reply |
 | `reframe(sessionId)` | `POST /session/{id}/reframe` | Returns reframed journal entry |
 
-## Design Tokens
+## Conventions
 
-- Background: `#121212` (screens), `#1a1a1a` (header)
-- Accent: `#5E8CFF` (buttons, user bubbles, trackball ball)
-- Reframe green: `#1a3a2a` (bubble), `#8fdfb0` (text)
-- Text: `#fff` (primary), `#aaa` (secondary), `#888` (labels)
+- **Dark theme everywhere**: backgrounds `#121212`/`#1a1a1a`, accent `#5E8CFF`, text white.
+- **No state management library** — plain `useState`/`useEffect`/`useCallback`.
+- **Inline `StyleSheet.create()`** per component. No shared style utilities.
+- **Errors surface via `Alert.alert()`** — all async calls are try/catch wrapped.
+- **TypeScript strict mode** is on. All props use local interfaces.
+- `App.tsx` and `index.ts` at the root are dead code — Expo Router's entry point (`expo-router/entry` in package.json `"main"`) takes over.
 
-## Known Issues / Gotchas
+## Dependency Pinning
 
-- `react-native-worklets` must be pinned to **0.5.1** to match Expo Go's native binary. If you run `npm install` and it upgrades to 0.7+, you'll get a JS/native mismatch error. Fix: `npm install react-native-worklets@0.5.1 --legacy-peer-deps`.
-- Use `npx expo install --fix` to align other deps with SDK 54, but it won't catch the worklets issue.
-- The API URL is hardcoded to `localhost:8000` in `lib/api.ts`. For device testing, change to your machine's local IP.
-- `GestureHandlerRootView` must wrap the entire app (done in `_layout.tsx`) or gestures won't work.
+`react-native-worklets` **must stay at 0.5.1** to match Expo Go's native binary. Bumping it causes a JS/native mismatch crash. Only update when upgrading the Expo SDK itself.

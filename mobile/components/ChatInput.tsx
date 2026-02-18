@@ -24,7 +24,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         value={text}
         onChangeText={setText}
         placeholder="Type a message..."
-        placeholderTextColor="#666"
+        placeholderTextColor="#7A8060"
         multiline
         returnKeyType="default"
         editable={!disabled}
@@ -47,12 +47,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#333",
+    borderTopColor: "#5A5D3E",
   },
   input: {
     flex: 1,
-    backgroundColor: "#1e1e1e",
-    color: "#fff",
+    backgroundColor: "#555838",
+    color: "#F0F5ED",
     fontSize: 15,
     borderRadius: 20,
     paddingHorizontal: 16,
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#5E8CFF",
+    backgroundColor: "#59A96A",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   sendText: {
-    color: "#fff",
+    color: "#F0F5ED",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -6,12 +6,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: "#1a1a1a" },
-          headerTintColor: "#fff",
-          contentStyle: { backgroundColor: "#121212" },
+          headerStyle: { backgroundColor: "#1C1E12" },
+          headerTintColor: "#F0F5ED",
+          contentStyle: { backgroundColor: "#252816" },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "CAMI" }} />
+        <Stack.Screen name="index" options={{ title: "Vocalise" }} />
         <Stack.Screen name="chat" options={{ title: "Journal" }} />
       </Stack>
     </GestureHandlerRootView>

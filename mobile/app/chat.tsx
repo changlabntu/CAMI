@@ -19,7 +19,10 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   isReframe?: boolean;
+  isHighlighted?: boolean;
 }
+
+const BOTTOM_ROW_HEIGHT = 80;
 
 export default function ChatScreen() {
   const { sessionId, initialPhase, initialCommands } = useLocalSearchParams<{
@@ -118,10 +121,11 @@ export default function ChatScreen() {
 
     setLoading(true);
     try {
+      const highlighted = cmd === "reframe" || cmd === "summarize";
       const result = await sendCommand(sessionId, cmd, {});
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: result.content },
+        { role: "assistant", content: result.content, isHighlighted: highlighted },
       ]);
       setPhase(result.phase);
       setCommands(result.commands);
@@ -133,10 +137,26 @@ export default function ChatScreen() {
     }
   }
 
+  // Split assistant messages on double-newlines so each paragraph is its own bubble
+  function expandMessages(msgs: ChatMessage[]): ChatMessage[] {
+    const result: ChatMessage[] = [];
+    for (const msg of msgs) {
+      if (msg.role === "assistant" && !msg.isReframe && !msg.isHighlighted && msg.content !== "...") {
+        const parts = msg.content.split(/\n\n+/).filter((p) => p.trim());
+        for (const part of parts) {
+          result.push({ ...msg, content: part.trim() });
+        }
+      } else {
+        result.push(msg);
+      }
+    }
+    return result;
+  }
+
   // Build display data: messages + optional typing indicator
   const displayData: ChatMessage[] = loading
-    ? [...messages, { role: "assistant", content: "..." }]
-    : messages;
+    ? [...expandMessages(messages), { role: "assistant", content: "..." }]
+    : expandMessages(messages);
 
   const reversedData = [...displayData].reverse();
 
@@ -147,39 +167,48 @@ export default function ChatScreen() {
       keyboardVerticalOffset={90}
     >
       <FlatList
+        style={{ flex: 1 }}
         data={reversedData}
         inverted
-        keyExtractor={(_, index) => String(index)}
+        keyExtractor={(item, index) => `${index}-${item.content.slice(0, 20)}`}
         renderItem={({ item }) => (
           <ChatBubble
             role={item.role}
             content={item.content}
             isReframe={item.isReframe}
+            isHighlighted={item.isHighlighted}
           />
         )}
         contentContainerStyle={styles.listContent}
         keyboardDismissMode="interactive"
       />
-      <View style={styles.phaseRow}>
-        <Text style={styles.phaseLabel}>{phase.toUpperCase()}</Text>
-      </View>
       {commands.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
-        >
-          {commands.map((cmd) => (
-            <Pressable
-              key={cmd}
-              style={[styles.chip, loading && styles.chipDisabled]}
-              onPress={() => handleCommand(cmd)}
-              disabled={loading}
-            >
-              <Text style={styles.chipText}>{cmd}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <View style={styles.chipRowContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+            style={styles.chipScroll}
+          >
+            {commands.map((cmd) => (
+              <Pressable
+                key={cmd}
+                style={({ pressed }) => [
+                  styles.chip,
+                  loading && styles.chipDisabled,
+                  pressed && styles.chipPressed,
+                ]}
+                onPress={() => handleCommand(cmd)}
+                disabled={loading}
+              >
+                <Text style={styles.chipText}>{cmd}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <View style={styles.phaseChip}>
+            <Text style={styles.phaseChipText}>{phase.toUpperCase()}</Text>
+          </View>
+        </View>
       )}
       <ChatInput onSend={handleSend} disabled={loading} />
     </KeyboardAvoidingView>
@@ -193,37 +222,53 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 8,
   },
-  phaseRow: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 2,
-    alignItems: "flex-end",
+  chipRowContainer: {
+    height: BOTTOM_ROW_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#5A5D3E",
   },
-  phaseLabel: {
-    color: "#666",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
+  chipScroll: {
+    flex: 1,
   },
   chipRow: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
     gap: 8,
+    alignItems: "center",
+  },
+  phaseChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#3A4A35",
+    borderWidth: 1,
+    borderColor: "#9BDEAC",
+    marginRight: 12,
+  },
+  phaseChipText: {
+    color: "#9BDEAC",
+    fontSize: 13,
+    fontWeight: "600",
   },
   chip: {
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: "#1e2a3a",
+    backgroundColor: "#3A4A35",
     borderWidth: 1,
-    borderColor: "#5E8CFF",
+    borderColor: "#9BDEAC",
+  },
+  chipPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.95 }],
   },
   chipDisabled: {
     opacity: 0.4,
   },
   chipText: {
-    color: "#5E8CFF",
-    fontSize: 13,
+    color: "#9BDEAC",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
