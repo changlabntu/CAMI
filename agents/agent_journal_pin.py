@@ -124,13 +124,14 @@ class JournalAgent:
         self.final_summary: str | None = None
         self.phase: Phase = "cbt"
 
-        # CBT phase messages
-        self.cbt_messages: list[dict] = [
+        # Phase objects
+        self.cbt_phase = ConversationPhase(llm)
+        self.cbt_phase.messages = [
             {"role": "system", "content": prompts["SYSTEM_PROMPT"]},
             {"role": "assistant", "content": "Counselor: 今天想寫些什麼呢？"},
         ]
 
-        # Reusable phase objects
+        # One-shot phases
         self.reframe_phase = OneShotPhase(llm, prompts["REFRAME_PROMPT"])
         self.summarize_phase = OneShotPhase(llm, prompts["SUMMARIZE_PROMPT"])
         self.narrative_phase = ConversationPhase(llm)
@@ -142,37 +143,29 @@ class JournalAgent:
 
     @property
     def messages(self):
-        return self.cbt_messages
+        return self.cbt_phase.messages
 
     @property
-    def _active_conversation(self) -> ConversationPhase | None:
+    def _active_conversation(self) -> ConversationPhase:
         if self.phase == "narrative":
             return self.narrative_phase
         if self.phase == "finalize":
             return self.finalize_phase
-        return None
+        return self.cbt_phase
 
     def receive(self, user_input: str) -> None:
-        if self.phase == "cbt":
-            if self.init_journal is None:
-                self.init_journal = user_input
-            self.cbt_messages.append({"role": "user", "content": user_input})
-        elif conv := self._active_conversation:
-            conv.receive(user_input)
+        if self.phase == "cbt" and self.init_journal is None: # init_journal is None when in CBT phase, user_input is the initial journal
+            self.init_journal = user_input
+        self._active_conversation.receive(user_input)
 
     def reply(self) -> str:
-        if conv := self._active_conversation:
-            return conv.reply()
-        # CBT phase
-        response = self.llm.invoke(self.cbt_messages)
-        self.cbt_messages.append({"role": "assistant", "content": response})
-        return response
+        return self._active_conversation.reply()
 
     def reframe(self) -> str:
         if not self.init_journal:
             return "沒有初始日記可以整理。"
 
-        conversation = build_conversation_text(self.cbt_messages)
+        conversation = build_conversation_text(self.cbt_phase.messages)
         self.reframed_journal = self.reframe_phase.execute(
             init_journal=self.init_journal,
             conversation=conversation,
