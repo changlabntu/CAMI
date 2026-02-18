@@ -7,7 +7,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from agents.agent_journal_pin import JournalAgent, MODELS
+from agents.agent_journal_pin import JournalAgent
+from agents.journal_common import MODELS, PHASE_COMMANDS
 
 ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "archived")
 
@@ -24,12 +25,12 @@ def print_metadata(agent, show_metadata):
     """Print token usage and response time if enabled."""
     if show_metadata and agent.last_metadata:
         m = agent.last_metadata
-        print(f"\n  [{m['model']}] in: {m['input_tokens']} | out: {m['output_tokens']} | time: {m['elapsed_time']:.2f}s")
+        print(f"\n  [{m['model']}] phase: {agent.phase} | in: {m['input_tokens']} | out: {m['output_tokens']} | time: {m['elapsed_time']:.2f}s")
 
 
-def get_input():
+def get_input(prompt="\nYou: "):
     """Get user input, return None on quit commands."""
-    user_input = input("\nYou: ").strip()
+    user_input = input(prompt).strip()
     if not user_input:
         return ""
     if user_input.lower() in ("quit", "exit", "q"):
@@ -41,24 +42,26 @@ def run_session(agent, show_metadata):
     """Run the multi-phase journaling session."""
     while True:
         try:
-            user_input = get_input()
+            commands = PHASE_COMMANDS.get(agent.phase, "")
+            prompt = f"\nSELECT [{commands}] OR SAY SOMETHING: " if commands else "\nYou: "
+            user_input = get_input(prompt)
             if user_input is None:
                 return
             if not user_input:
                 continue
 
-            cmd = user_input.lower()
+            cmd = user_input.lower() # hardcoded user input reframe > next > narrarive > summarize > end
 
             # --- CBT phase commands ---
             if agent.phase == "cbt":
-                if cmd == "reframe":
+                if cmd == "reframe": # hardcoded user input
                     print("\n--- Reframed Journal Entry ---\n")
                     reframed = agent.reframe()
                     print(reframed)
                     print_metadata(agent, show_metadata)
                     continue
 
-                if cmd == "next":
+                if cmd == "next": # hardcoded user input
                     if not agent.reframed_journal:
                         print("\n--- Reframing first... ---\n")
                         reframed = agent.reframe()
@@ -73,13 +76,13 @@ def run_session(agent, show_metadata):
 
             # --- Narrative phase commands ---
             elif agent.phase == "narrative":
-                if cmd == "summarize":
+                if cmd == "summarize": # hardcoded user input
                     print("\n--- Reflection Summary ---\n")
                     summary = agent.summarize()
                     print(summary)
                     print_metadata(agent, show_metadata)
 
-                    title = get_input()
+                    title = get_input("\nTitle: ")
                     if title is None:
                         return
 
@@ -92,7 +95,7 @@ def run_session(agent, show_metadata):
 
             # --- Finalize phase commands ---
             elif agent.phase == "finalize":
-                if cmd == "end":
+                if cmd == "end": # hardcoded user input
                     print(f"\nJournal '{agent.journal_title}' archived!")
                     return
 
