@@ -133,7 +133,6 @@ celerybeat.pid
 env/
 venv/
 ENV/
-notinuse/
 env.bak/
 venv.bak/
 
@@ -146,6 +145,7 @@ venv.bak/
 
 # mkdocs documentation
 /site
+/notinuse
 
 # mypy
 .mypy_cache/
