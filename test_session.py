@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agents.agent_journal_pin import JournalAgent
-from agents.journal_common import PHASE_COMMANDS
 
 
 def fmt_meta(meta, phase=""):
@@ -31,7 +30,7 @@ def run_session():
         nonlocal step
         step += 1
         print(f"\n--- Step {step}: receive + reply ({agent.phase}) ---")
-        commands = PHASE_COMMANDS.get(agent.phase, [])
+        commands = agent.commands
         prompt = f"SELECT [{' | '.join(commands)}] OR SAY SOMETHING" if commands else "You"
         print(f"{prompt}: {user_input}")
         agent.receive(user_input)

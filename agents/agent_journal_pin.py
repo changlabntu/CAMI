@@ -112,6 +112,12 @@ class ConversationPhase:
 
 
 class JournalAgent:
+    PHASE_COMMANDS = {
+        "cbt":       {"reframe": "reframe", "next": "start_narrative"},
+        "narrative": {"summarize": "summarize", "finalize": "finalize"},
+        "finalize":  {"end": "_end"},
+    }
+
     def __init__(self, model="opus"):
         llm = LLMService(create_llm(model), model)
         prompts = load_prompts()
@@ -139,6 +145,7 @@ class JournalAgent:
 
     @property
     def last_metadata(self):
+        """Expose LLMService last_metadata, including input/output tokens, elapsed time, model name"""
         return self.llm.last_metadata
 
     @property
@@ -207,3 +214,24 @@ class JournalAgent:
             summary=self.final_summary,
         )
         return self.finalize_phase.start(system, f"我把日記取名為「{title}」。")
+
+    @property
+    def commands(self) -> list[str]:
+        """Available commands for the current phase."""
+        return list(self.PHASE_COMMANDS.get(self.phase, {}).keys())
+
+    def command(self, cmd: str, **kwargs) -> str:
+        """Execute a phase command. Raises ValueError if invalid."""
+        phase_cmds = self.PHASE_COMMANDS.get(self.phase, {})
+        if cmd not in phase_cmds:
+            raise ValueError(f"'{cmd}' not available in '{self.phase}' phase. Valid: {list(phase_cmds.keys())}")
+
+        if cmd == "next" and not self.reframed_journal:
+            self.reframe()
+        if cmd == "finalize" and not kwargs.get("title"):
+            raise ValueError("'title' is required for finalize command")
+
+        return getattr(self, phase_cmds[cmd])(**kwargs)
+
+    def _end(self, **kwargs) -> str:
+        return getattr(self, "journal_title", "")

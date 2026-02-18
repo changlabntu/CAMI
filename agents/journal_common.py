@@ -11,12 +11,6 @@ MODELS = {
     "sonnet": "claude-sonnet-4-20250514",
 }
 
-PHASE_COMMANDS = {
-    "cbt": ["reframe", "next"],
-    "narrative": ["summarize"],
-    "finalize": ["end"],
-}
-
 
 def create_llm(model_name="opus"):
     """Create a ChatAnthropic LLM with the specified model."""

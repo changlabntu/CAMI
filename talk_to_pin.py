@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agents.agent_journal_pin import JournalAgent
-from agents.journal_common import MODELS, PHASE_COMMANDS
+from agents.journal_common import MODELS
 
 ARCHIVE_DIR = os.path.join(os.path.dirname(__file__), "archived")
 
@@ -42,7 +42,7 @@ def run_session(agent, show_metadata):
     """Run the multi-phase journaling session."""
     while True:
         try:
-            commands = PHASE_COMMANDS.get(agent.phase, [])
+            commands = agent.commands
             prompt = f"\nSELECT [{' | '.join(commands)}] OR SAY SOMETHING: " if commands else "\nYou: "
             user_input = get_input(prompt)
             if user_input is None:

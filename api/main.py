@@ -16,8 +16,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 # (uvicorn runs from api/, so the parent dir isn't on sys.path by default)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from agents.agent_journal import JournalAgent
-from agents.agent_journal_pin import JournalAgent as PinAgent
+from agents.agent_journal_pin import JournalAgent
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +29,6 @@ class CreateSessionRequest(BaseModel):
     valence: float = Field(..., ge=-1.0, le=1.0)
     support_type: float = Field(..., ge=-1.0, le=1.0)
     model: Optional[str] = Field("sonnet")
-    agent: Optional[str] = Field("journal")  # "journal" or "pin"
 
 
 class SendMessageRequest(BaseModel):
@@ -40,21 +38,34 @@ class SendMessageRequest(BaseModel):
 class CreateSessionResponse(BaseModel):
     session_id: str
     greeting: str
+    phase: str
+    commands: list[str]
 
 
 class SessionResponse(BaseModel):
     session_id: str
     messages: list[dict]
+    phase: str
+    commands: list[str]
 
 
 class MessageResponse(BaseModel):
     role: str
     content: str
+    phase: str
+    commands: list[str]
     metadata: Optional[dict] = None
 
 
-class ReframeResponse(BaseModel):
-    reframed_entry: str
+class CommandRequest(BaseModel):
+    command: str
+    args: dict = {}
+
+
+class CommandResponse(BaseModel):
+    content: str
+    phase: str
+    commands: list[str]
     metadata: Optional[dict] = None
 
 
@@ -130,8 +141,7 @@ app.add_middleware(
 
 @app.post("/session", response_model=CreateSessionResponse)
 def create_session(request: CreateSessionRequest):
-    AgentClass = PinAgent if request.agent == "pin" else JournalAgent
-    agent = AgentClass(model=request.model or "sonnet")
+    agent = JournalAgent(model=request.model or "sonnet")
 
     # Append emotion description to system prompt
     agent.messages[0]["content"] += describe_emotion(request.valence, request.support_type)
@@ -142,7 +152,12 @@ def create_session(request: CreateSessionRequest):
     session_id = uuid.uuid4().hex
     sessions[session_id] = (agent, time.time())
 
-    return CreateSessionResponse(session_id=session_id, greeting=greeting)
+    return CreateSessionResponse(
+        session_id=session_id,
+        greeting=greeting,
+        phase=agent.phase,
+        commands=agent.commands,
+    )
 
 
 @app.get("/session/{session_id}", response_model=SessionResponse)
@@ -150,13 +165,18 @@ def get_session_info(session_id: str):
     agent = get_session(session_id)
 
     messages = []
-    for msg in agent.messages:
+    for msg in agent._active_conversation.messages:
         if msg["role"] == "system":
             continue
         content = strip_counselor_prefix(msg["content"]) if msg["role"] == "assistant" else msg["content"]
         messages.append({"role": msg["role"], "content": content})
 
-    return SessionResponse(session_id=session_id, messages=messages)
+    return SessionResponse(
+        session_id=session_id,
+        messages=messages,
+        phase=agent.phase,
+        commands=agent.commands,
+    )
 
 
 @app.post("/session/{session_id}/message", response_model=MessageResponse)
@@ -169,20 +189,22 @@ def send_message(session_id: str, request: SendMessageRequest):
     return MessageResponse(
         role="assistant",
         content=strip_counselor_prefix(response_text),
+        phase=agent.phase,
+        commands=agent.commands,
         metadata=agent.last_metadata,
     )
 
 
-@app.post("/session/{session_id}/reframe", response_model=ReframeResponse)
-def reframe_entry(session_id: str):
+@app.post("/session/{session_id}/command", response_model=CommandResponse)
+def execute_command(session_id: str, request: CommandRequest):
     agent = get_session(session_id)
-
-    if not agent.init_journal:
-        raise HTTPException(status_code=400, detail="No journal entry to reframe. Send at least one message first.")
-
-    reframed = agent.reframe()
-
-    return ReframeResponse(
-        reframed_entry=reframed,
+    try:
+        result = agent.command(request.command, **request.args)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return CommandResponse(
+        content=strip_counselor_prefix(result),
+        phase=agent.phase,
+        commands=agent.commands,
         metadata=agent.last_metadata,
     )
