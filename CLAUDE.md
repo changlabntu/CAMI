@@ -12,16 +12,10 @@ CAMI is a conversational AI counseling system focused on structured journaling f
 # Load API keys (ANTHROPIC_API_KEY)
 source .env
 
-# JournalAgent — single-phase CBT journaling (uses Claude)
-python talk_to_journal.py --model sonnet --show-metadata
-
-# JournalAgent (pin) — multi-phase: CBT → narrative → finalize (uses Claude)
+# JournalAgent — multi-phase: CBT → narrative → finalize (uses Claude)
 python talk_to_pin.py --cbt --model sonnet --show-metadata
 python talk_to_pin.py --narrative --model sonnet --show-metadata
 python talk_to_pin.py --finalize --model sonnet --show-metadata
-
-# talk_to_journal.py also supports --agent pin for quick single-loop access
-python talk_to_journal.py --agent pin --model sonnet --show-metadata
 
 # FastAPI backend (start first — mobile app depends on it)
 cd api && uvicorn main:app --reload --port 8000
@@ -30,7 +24,15 @@ cd api && uvicorn main:app --reload --port 8000
 cd mobile && npx expo start
 ```
 
-No test suite, linter, or build system exists — this is a research prototype.
+### Replay Test
+
+After changing agent code, run the replay test to verify the full CBT → narrative → finalize flow:
+
+```bash
+source .env && python test_session.py
+```
+
+Requires `ANTHROPIC_API_KEY`. Takes ~30-60s with sonnet. Also works with `pytest test_session.py -s`.
 
 ## Architecture
 
@@ -38,9 +40,7 @@ No test suite, linter, or build system exists — this is a research prototype.
 
 All agents follow a common interface: `receive(input)` stores user messages, `reply()` generates responses via LLM.
 
-- **JournalAgent** (`agents/agent_journal.py`) — Single-phase CBT journaling agent. Uses Claude (Opus/Sonnet) via `langchain-anthropic`. CBT emotion/cognition/behavior triangle for structured journaling. Has a `reframe()` method that rewrites the original journal entry after the conversation. Stores first user input as `self.init_journal`.
-
-- **JournalAgent (pin)** (`agents/agent_journal_pin.py`) — Multi-phase journaling agent. Extends the CBT approach with three phases managed by `self.phase`: **CBT** (emotion/cognition/behavior exploration + reframe), **narrative** (narrative therapy deepening via `start_narrative()` + `summarize()`), and **finalize** (emotion check-in + archiving via `finalize(title)`). Internally uses helper classes `LLMService`, `OneShotPhase`, and `ConversationPhase` to keep phase transitions clean. Phase-aware `receive()`/`reply()` automatically route to the correct message list.
+- **JournalAgent** (`agents/agent_journal_pin.py`) — Multi-phase journaling agent with three phases managed by `self.phase`: **CBT** (emotion/cognition/behavior exploration + reframe), **narrative** (narrative therapy deepening via `start_narrative()` + `summarize()`), and **finalize** (emotion check-in + archiving via `finalize(title)`). Internally uses helper classes `LLMService`, `OneShotPhase`, and `ConversationPhase` to keep phase transitions clean. Phase-aware `receive()`/`reply()` automatically route to the correct message list.
 
 ### Message Format
 
@@ -80,8 +80,7 @@ Key components:
 
 ### CLI Entry Points
 
-- `talk_to_journal.py` — Interactive CLI for JournalAgent. Supports `--agent journal` (default, single-phase) and `--agent pin` (multi-phase).
-- `talk_to_pin.py` — Multi-phase CLI for the pin agent with `--cbt`, `--narrative`, `--finalize` modes and phase-transition commands (`reframe`, `next`, `summarize`, `end`).
+- `talk_to_pin.py` — Multi-phase CLI for JournalAgent with `--cbt`, `--narrative`, `--finalize` modes and phase-transition commands (`reframe`, `next`, `summarize`, `end`).
 
 ## Key Dependencies
 
@@ -101,21 +100,8 @@ Key components:
 - Agent responses are prefixed with `"Counselor: "` in the message history.
 - Token usage and timing are tracked in `agent.last_metadata` after each `reply()` or `reframe()` call.
 - The `notinuse/` directory contains archived/experimental code — not imported by active agents.
-- `agents/__init__.py` is intentionally empty — all imports use explicit module paths (e.g. `from agents.agent_journal import JournalAgent`).
-- `agents/journal_common.py` contains shared helpers (`MODELS`, `create_llm()`, `openai_2_langchain()`) used by both journal agents (`agent_journal.py` and `agent_journal_pin.py`).
-
-## Archived (`notinuse/`)
-
-The following agents and utilities have been archived. They are not imported by any active code.
-
-- **CAMISimple** (`agent.py` → `notinuse/cami_original.py`) — Simplified Motivational Interviewing counselor using GPT-4o. Pipeline: state inference → strategy selection → response generation → refinement.
-- **CAMI** — Full MI implementation with topic management and Stages of Change tracking. Used context modules (`context_cami.py`, `context_crisis.py`) for domain-specific prompts.
-- **CAMIStory** (`notinuse/agent_story.py`) — Narrative therapy agent (experimental).
-- **Env** (`env.py`) — Conversation moderator with heuristic-based session termination.
-- **Context modules** (`context_cami.py`, `context_crisis.py`) — MI strategies, DBT crisis intervention prompts.
-- **CLI**: `talk_to_agent.py` (MI/DBT agent CLI), `generate.py` / `generate_prompted.py` (batch conversation generation).
-- **Client variants**: `client.py`, `client_backup.py`, `client_context.py`, `client_prompted.py` — older conversation clients.
-
+- `agents/__init__.py` is intentionally empty — all imports use explicit module paths (e.g. `from agents.agent_journal_pin import JournalAgent`).
+- `agents/journal_common.py` contains shared helpers (`MODELS`, `create_llm()`, `openai_2_langchain()`) used by `agent_journal_pin.py`.
 ## Git Policy
 - Commit after each meaningful change, not at the end of a big task
 - Use conventional commit messages: `type(scope): short description`
