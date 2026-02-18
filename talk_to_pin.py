@@ -121,6 +121,10 @@ def main():
                         help="Start narrative therapy directly")
     parser.add_argument("--finalize", action="store_true",
                         help="Start finalize directly (reads from archived/summarize.txt)")
+    parser.add_argument("--valence", type=float, default=0.0,
+                        help="Emotion valence: -1 (bad) to 1 (good), default 0.0")
+    parser.add_argument("--support-type", type=float, default=0.0,
+                        help="Support type: -1 (compassion) to 1 (advice), default 0.0")
     parser.add_argument("--origin_story", type=str, default="story/example.txt",
                         help="Path to story file (default: story/example.txt)")
     args = parser.parse_args()
@@ -129,7 +133,7 @@ def main():
         print("Please specify --cbt, --narrative, or --finalize")
         return
 
-    agent = JournalAgent(model=args.model)
+    agent = JournalAgent(model=args.model, valence=args.valence, support_type=args.support_type)
     print(f"Using model: {MODELS[args.model]}")
 
     if args.finalize:

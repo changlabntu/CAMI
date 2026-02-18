@@ -24,6 +24,29 @@ def create_llm(model_name="opus"):
     )
 
 
+def describe_emotion(valence: float, support_type: float) -> str:
+    """Map valence/support_type floats to natural-language description for the system prompt."""
+    if valence < -0.5:
+        feeling = "The user is feeling quite distressed or upset."
+    elif valence < 0:
+        feeling = "The user is feeling somewhat down or troubled."
+    elif valence < 0.5:
+        feeling = "The user is feeling okay, perhaps mildly positive."
+    else:
+        feeling = "The user is feeling quite good or positive."
+
+    if support_type < -0.5:
+        approach = "They are looking for compassion, empathy, and emotional validation. Focus on listening and reflecting their feelings rather than offering solutions."
+    elif support_type < 0:
+        approach = "They prefer a more empathetic and supportive approach, leaning toward emotional validation over direct advice."
+    elif support_type < 0.5:
+        approach = "They are open to some gentle guidance and practical suggestions alongside emotional support."
+    else:
+        approach = "They are looking for concrete advice, practical strategies, and actionable guidance."
+
+    return f"\n\n{feeling} {approach}"
+
+
 def openai_2_langchain(messages):
     """Convert OpenAI message format to LangChain format."""
     lc_messages = []

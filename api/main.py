@@ -92,31 +92,6 @@ def get_session(session_id: str):
     return agent
 
 
-# --- Emotion mapping ---
-
-
-def describe_emotion(valence: float, support_type: float) -> str:
-    if valence < -0.5:
-        feeling = "The user is feeling quite distressed or upset."
-    elif valence < 0:
-        feeling = "The user is feeling somewhat down or troubled."
-    elif valence < 0.5:
-        feeling = "The user is feeling okay, perhaps mildly positive."
-    else:
-        feeling = "The user is feeling quite good or positive."
-
-    if support_type < -0.5:
-        approach = "They are looking for compassion, empathy, and emotional validation. Focus on listening and reflecting their feelings rather than offering solutions."
-    elif support_type < 0:
-        approach = "They prefer a more empathetic and supportive approach, leaning toward emotional validation over direct advice."
-    elif support_type < 0.5:
-        approach = "They are open to some gentle guidance and practical suggestions alongside emotional support."
-    else:
-        approach = "They are looking for concrete advice, practical strategies, and actionable guidance."
-
-    return f"\n\n{feeling} {approach}"
-
-
 def strip_counselor_prefix(text: str) -> str:
     if text.startswith("Counselor: "):
         return text[len("Counselor: "):]
@@ -141,10 +116,11 @@ app.add_middleware(
 
 @app.post("/session", response_model=CreateSessionResponse)
 def create_session(request: CreateSessionRequest):
-    agent = JournalAgent(model=request.model or "sonnet")
-
-    # Append emotion description to system prompt
-    agent.messages[0]["content"] += describe_emotion(request.valence, request.support_type)
+    agent = JournalAgent(
+        model=request.model or "sonnet",
+        valence=request.valence,
+        support_type=request.support_type,
+    )
 
     # Extract greeting
     greeting = strip_counselor_prefix(agent.messages[1]["content"])

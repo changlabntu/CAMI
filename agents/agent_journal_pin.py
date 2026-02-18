@@ -6,7 +6,7 @@ import os
 import time
 from typing import Literal
 
-from .journal_common import MODELS, create_llm, openai_2_langchain
+from .journal_common import MODELS, create_llm, openai_2_langchain, describe_emotion
 
 Phase = Literal["cbt", "narrative", "finalize"]
 
@@ -118,11 +118,13 @@ class JournalAgent:
         "finalize":  {"end": "_end"},
     }
 
-    def __init__(self, model="opus"):
+    def __init__(self, model="opus", valence: float = 0.0, support_type: float = 0.0):
         llm = LLMService(create_llm(model), model)
         prompts = load_prompts()
         self.llm = llm
         self.prompts = prompts
+        self.valence = valence
+        self.support_type = support_type
 
         # Shared state
         self.init_journal: str | None = None
@@ -133,8 +135,8 @@ class JournalAgent:
         # Phase objects
         self.cbt_phase = ConversationPhase(llm)
         self.cbt_phase.messages = [
-            {"role": "system", "content": prompts["SYSTEM_PROMPT"]},
-            {"role": "assistant", "content": "Counselor: 今天想寫些什麼呢？"},
+            {"role": "system", "content": prompts["SYSTEM_PROMPT"] + describe_emotion(valence, support_type)},
+            {"role": "assistant", "content": self._make_greeting()},
         ]
 
         # One-shot phases
@@ -142,6 +144,22 @@ class JournalAgent:
         self.summarize_phase = OneShotPhase(llm, prompts["SUMMARIZE_PROMPT"])
         self.narrative_phase = ConversationPhase(llm)
         self.finalize_phase = ConversationPhase(llm)
+
+    def _make_greeting(self) -> str:
+        """Generate initial greeting based on emotion coordinates."""
+        compassion = self.support_type < 0
+        if self.valence < -0.3:
+            if compassion:
+                return "Counselor: 看起來你今天心情不太好，我在這裡陪你，想聊聊嗎？"
+            return "Counselor: 看起來今天遇到了一些困難，想一起來想想辦法嗎？"
+        elif self.valence > 0.3:
+            if compassion:
+                return "Counselor: 今天感覺還不錯呢！想把這份心情記錄下來嗎？"
+            return "Counselor: 今天似乎有些收穫，想記錄一下嗎？"
+        else:
+            if compassion:
+                return "Counselor: 今天想寫些什麼呢？我在這裡聽你說。"
+            return "Counselor: 今天有什麼想法想整理一下嗎？"
 
     @property
     def last_metadata(self):
