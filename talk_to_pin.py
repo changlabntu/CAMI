@@ -42,8 +42,8 @@ def run_session(agent, show_metadata):
     """Run the multi-phase journaling session."""
     while True:
         try:
-            commands = PHASE_COMMANDS.get(agent.phase, "")
-            prompt = f"\nSELECT [{commands}] OR SAY SOMETHING: " if commands else "\nYou: "
+            commands = PHASE_COMMANDS.get(agent.phase, [])
+            prompt = f"\nSELECT [{' | '.join(commands)}] OR SAY SOMETHING: " if commands else "\nYou: "
             user_input = get_input(prompt)
             if user_input is None:
                 return

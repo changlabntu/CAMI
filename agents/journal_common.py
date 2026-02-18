@@ -12,9 +12,9 @@ MODELS = {
 }
 
 PHASE_COMMANDS = {
-    "cbt": "reframe | next",
-    "narrative": "summarize",
-    "finalize": "end",
+    "cbt": ["reframe", "next"],
+    "narrative": ["summarize"],
+    "finalize": ["end"],
 }
 
 

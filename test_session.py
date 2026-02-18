@@ -31,8 +31,8 @@ def run_session():
         nonlocal step
         step += 1
         print(f"\n--- Step {step}: receive + reply ({agent.phase}) ---")
-        commands = PHASE_COMMANDS.get(agent.phase, "")
-        prompt = f"SELECT [{commands}] OR SAY SOMETHING" if commands else "You"
+        commands = PHASE_COMMANDS.get(agent.phase, [])
+        prompt = f"SELECT [{' | '.join(commands)}] OR SAY SOMETHING" if commands else "You"
         print(f"{prompt}: {user_input}")
         agent.receive(user_input)
         response = agent.reply()
