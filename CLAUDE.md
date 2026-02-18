@@ -26,13 +26,13 @@ cd mobile && npx expo start
 
 ### Replay Test
 
-After changing agent code, run the replay test to verify the full CBT → narrative → finalize flow:
+After changing agent or API code, run the replay test to verify the full CBT → narrative → finalize flow:
 
 ```bash
-source .env && python test_session.py
+source .env && python test_api.py
 ```
 
-Requires `ANTHROPIC_API_KEY`. Takes ~30-60s with sonnet. Also works with `pytest test_session.py -s`.
+Requires `ANTHROPIC_API_KEY`. Takes ~30-60s with sonnet. Also works with `pytest test_api.py -s`.
 
 ## Architecture
 
