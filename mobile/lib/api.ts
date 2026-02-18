@@ -28,35 +28,40 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // --- Types ---
 
+interface Metadata {
+  input_tokens: number;
+  output_tokens: number;
+  elapsed_time: number;
+  model: string;
+}
+
 export interface Session {
   session_id: string;
   greeting: string;
+  phase: string;
+  commands: string[];
 }
 
 export interface SessionInfo {
   session_id: string;
   messages: { role: string; content: string }[];
+  phase: string;
+  commands: string[];
 }
 
 export interface Message {
   role: string;
   content: string;
-  metadata?: {
-    input_tokens: number;
-    output_tokens: number;
-    elapsed_time: number;
-    model: string;
-  };
+  phase: string;
+  commands: string[];
+  metadata?: Metadata;
 }
 
-export interface Reframe {
-  reframed_entry: string;
-  metadata?: {
-    input_tokens: number;
-    output_tokens: number;
-    elapsed_time: number;
-    model: string;
-  };
+export interface CommandResponse {
+  content: string;
+  phase: string;
+  commands: string[];
+  metadata?: Metadata;
 }
 
 // --- API functions ---
@@ -92,8 +97,13 @@ export function sendMessage(
   });
 }
 
-export function reframe(sessionId: string): Promise<Reframe> {
-  return request(`/session/${sessionId}/reframe`, {
+export function sendCommand(
+  sessionId: string,
+  command: string,
+  args: Record<string, unknown> = {}
+): Promise<CommandResponse> {
+  return request(`/session/${sessionId}/command`, {
     method: "POST",
+    body: JSON.stringify({ command, args }),
   });
 }

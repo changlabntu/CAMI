@@ -43,7 +43,14 @@ export default function WelcomeScreen() {
     setLoading(true);
     try {
       const session = await createSession(valence, supportType, undefined, agent);
-      router.push({ pathname: "/chat", params: { sessionId: session.session_id } });
+      router.push({
+        pathname: "/chat",
+        params: {
+          sessionId: session.session_id,
+          initialPhase: session.phase,
+          initialCommands: JSON.stringify(session.commands),
+        },
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create session";
       Alert.alert("Error", msg);
