@@ -146,6 +146,7 @@ venv.bak/
 # mkdocs documentation
 /site
 /notinuse
+/archived
 
 # mypy
 .mypy_cache/
